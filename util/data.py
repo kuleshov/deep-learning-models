@@ -1,6 +1,7 @@
 import sys
 import os
 import pickle
+import tarfile
 
 import numpy as np
 
@@ -24,11 +25,16 @@ def load_cifar10():
   filename = DATA_URL.split('/')[-1]
   filepath = os.path.join(dest_directory, filename)
   if not os.path.exists(filepath):
+    if sys.version_info[0] == 2:
+      from urllib import urlretrieve
+    else:
+      from urllib.request import urlretrieve
+
     def _progress(count, block_size, total_size):
       sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
           float(count * block_size) / float(total_size) * 100.0))
       sys.stdout.flush()
-    filepath, _ = urllib.request.urlretrieve(DATA_URL, filepath, _progress)
+    filepath, _ = urlretrieve(DATA_URL, filepath, _progress)
     print()
     statinfo = os.stat(filepath)
     print('Successfully downloaded', filename, statinfo.st_size, 'bytes.')
