@@ -4,6 +4,7 @@ from cnn import CNN
 from vae import VAE
 from sbn import SBN
 from adgm import ADGM
+from dadgm import DADGM
 
 try:
   from resnet import Resnet
