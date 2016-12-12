@@ -9,6 +9,7 @@ import lasagne
 from model import Model
 
 from layers import GaussianSampleLayer
+from distributions import log_bernoulli, log_normal, log_normal2
 
 # ----------------------------------------------------------------------------
 
@@ -29,19 +30,20 @@ class VAE(Model):
     n_out = n_dim * n_dim * n_chan # total dimensionality of ouput
     hid_nl = lasagne.nonlinearities.tanh if self.model == 'bernoulli' \
              else T.nnet.softplus
+    # hid_nl = lasagne.nonlinearities.rectified
 
     # create the encoder network
     l_q_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
                                      input_var=X)
     l_q_hid = lasagne.layers.DenseLayer(
         l_q_in, num_units=n_hid,
-        nonlinearity=hid_nl)
+        nonlinearity=hid_nl, name='q_hid')
     l_q_mu = lasagne.layers.DenseLayer(
         l_q_hid, num_units=n_lat,
-        nonlinearity=None)
+        nonlinearity=None, name='q_mu')
     l_q_logsigma = lasagne.layers.DenseLayer(
         l_q_hid, num_units=n_lat,
-        nonlinearity=None)
+        nonlinearity=None, name='q_logsigma')
 
     # create the decoder network
     l_p_z = GaussianSampleLayer(l_q_mu, l_q_logsigma)
@@ -49,14 +51,14 @@ class VAE(Model):
     l_p_hid = lasagne.layers.DenseLayer(
         l_p_z, num_units=n_hid,
         nonlinearity=hid_nl,
-        W=lasagne.init.GlorotUniform())
+        W=lasagne.init.GlorotUniform(), name='p_hid')
     l_p_mu, l_p_logsigma = None, None
 
     if self.model == 'bernoulli':
       l_sample = lasagne.layers.DenseLayer(l_p_hid, num_units=n_out,
           nonlinearity = lasagne.nonlinearities.sigmoid,
           W=lasagne.init.GlorotUniform(),
-          b=lasagne.init.Constant(0.))
+          b=lasagne.init.Constant(0.), name='p_sigma')
 
     elif self.model == 'gaussian':
       l_p_mu = lasagne.layers.DenseLayer(
@@ -73,18 +75,22 @@ class VAE(Model):
 
       l_sample = GaussianSampleLayer(l_p_mu, l_p_logsigma)
 
-    return l_p_mu, l_p_logsigma, l_q_mu, l_q_logsigma, l_sample
+    return l_p_mu, l_p_logsigma, l_q_mu, l_q_logsigma, l_sample, l_p_z
 
   def create_objectives(self, deterministic=False):
+    return self.create_objectives_elbo(deterministic)
+
+  def create_objectives_analytic(self, deterministic=False):
+    """ELBO objective with the analytic expectation trick"""
     # load network input
     X = self.inputs[0]
 
     # load network output
     if self.model == 'bernoulli':
-      q_mu, q_logsigma, sample \
+      q_mu, q_logsigma, sample, _ \
           = lasagne.layers.get_output(self.network[2:], deterministic=deterministic)
     elif self.model == 'gaussian':
-      p_mu, p_logsigma, q_mu, q_logsigma, _ \
+      p_mu, p_logsigma, q_mu, q_logsigma, _, _ \
           = lasagne.layers.get_output(self.network, deterministic=deterministic)
 
     # first term of the ELBO: kl-divergence (using the closed form expression)
@@ -105,6 +111,105 @@ class VAE(Model):
     # we don't use the spearate accuracy metric right now
     return loss, -kl_div
 
+  def create_objectives_elbo(self, deterministic=False):
+    """ELBO objective without the analytic expectation trick"""
+    # load network input
+    X = self.inputs[0]
+    x = X.flatten(2)
+
+    # load network output
+    if self.model == 'bernoulli':
+      q_mu, q_logsigma, p_mu, z \
+           = lasagne.layers.get_output(self.network[2:], deterministic=deterministic)
+    elif self.model == 'gaussian':
+      raise NotImplementedError()
+
+    # entropy term
+    log_qz_given_x = log_normal2(z, q_mu, q_logsigma).sum(axis=1)
+
+    # expected p(x,z) term
+    z_prior_sigma = T.cast(T.ones_like(q_logsigma), dtype=theano.config.floatX)
+    z_prior_mu = T.cast(T.zeros_like(q_mu), dtype=theano.config.floatX)
+    log_pz = log_normal(z, z_prior_mu,  z_prior_sigma).sum(axis=1)     
+    log_px_given_z = log_bernoulli(x, p_mu).sum(axis=1)
+    log_pxz = log_pz + log_px_given_z
+
+    elbo = (log_pxz - log_qz_given_x).mean()
+
+    # we don't use the spearate accuracy metric right now
+    return -elbo, -log_qz_given_x.mean()  
+
+  def create_gradients(self, loss, deterministic=False):
+    from theano.gradient import disconnected_grad as dg
+
+    # load network input
+    X = self.inputs[0]
+    x = X.flatten(2)
+
+    # load network output
+    if self.model == 'bernoulli':
+      q_mu, q_logsigma, p_mu, z \
+           = lasagne.layers.get_output(self.network[2:], deterministic=deterministic)
+      l_q_mu, l_q_logsigma, l_p_mu, _ = self.network[2:]
+    elif self.model == 'gaussian':
+      raise NotImplementedError()
+
+    # load params
+    p_params, q_params = self._get_net_params()
+
+    # entropy term
+    log_qz_given_x = log_normal2(z, q_mu, q_logsigma).sum(axis=1)
+
+    # expected p(x,z) term
+    z_prior_sigma = T.cast(T.ones_like(q_logsigma), dtype=theano.config.floatX)
+    z_prior_mu = T.cast(T.zeros_like(q_mu), dtype=theano.config.floatX)
+    log_pz = log_normal(z, z_prior_mu, z_prior_sigma).sum(axis=1)     
+    log_px_given_z = log_bernoulli(x, p_mu).sum(axis=1)
+    log_pxz = log_pz + log_px_given_z
+
+    # compute learning signals
+    l = log_pxz - log_qz_given_x 
+    # l_avg, l_std = l.mean(), T.maximum(1, l.std())
+    # c_new = 0.8*c + 0.2*l_avg
+    # v_new = 0.8*v + 0.2*l_std
+    # l = (l - c_new) / v_new
+  
+    # compute grad wrt p
+    p_grads = T.grad(-log_pxz.mean(), p_params)
+
+    # compute grad wrt q
+    q_target = T.mean(l * log_qz_given_x)
+    q_grads = T.grad(-0.2*q_target, q_params, consider_constant=[l]) # 5x slower rate for q
+    # q_grads = T.grad(-l.mean(), q_params) # 5x slower rate for q
+
+    # # compute grad of cv net
+    # cv_target = T.mean(l**2)
+    # cv_grads = T.grad(cv_target, cv_params)
+
+    # combine and clip gradients
+    clip_grad = 1
+    max_norm = 5
+    grads = p_grads + q_grads
+    mgrads = lasagne.updates.total_norm_constraint(grads, max_norm=max_norm)
+    cgrads = [T.clip(g, -clip_grad, clip_grad) for g in mgrads]
+
+    return cgrads  
+
+  def _get_net_params(self):
+    # load network output
+    if self.model == 'bernoulli':
+      _, _, l_p_mu, _ = self.network[2:]
+    elif self.model == 'gaussian':
+      raise NotImplementedError()
+
+    # load params
+    params  = lasagne.layers.get_all_params(l_p_mu, trainable=True)
+
+    p_params = [p for p in params if p.name.startswith('p_')]
+    q_params = [p for p in params if p.name.startswith('q_')]
+
+    return p_params, q_params
+
   def get_params(self):
-    _, _, _, _, l_sample = self.network
-    return lasagne.layers.get_all_params(l_sample, trainable=True)
+    p_params, q_params = self._get_net_params()
+    return p_params + q_params
