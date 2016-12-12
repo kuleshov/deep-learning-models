@@ -115,9 +115,17 @@ def load_mnist():
   return X_train, y_train, X_val, y_val, X_test, y_test
 
 # ----------------------------------------------------------------------------
-# other (untested)
+# other
+
+def load_noise(n=100,d=5):
+  """For debugging"""
+  X = np.random.randint(2,size=(n,1,d,d)).astype('float32')
+  Y = np.random.randint(2,size=(n,)).astype(np.uint8)
+
+  return X, Y
 
 def load_h5(h5_path):
+  """This was untested"""
   import h5py
   # load training data
   with h5py.File(h5_path, 'r') as hf:

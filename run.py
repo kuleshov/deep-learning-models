@@ -1,3 +1,4 @@
+
 import argparse
 from util import data, fig, launch
 
@@ -68,10 +69,12 @@ def train(args):
     n_dim, n_out, n_channels = 32, 10, 3
     X_train, Y_train, X_val, Y_val = data.load_cifar10()
     X_train, X_val = data.whiten(X_train, X_val)
+  elif args.dataset == 'random':
+    n_dim, n_out, n_channels = 2, 2, 1
+    X_train, Y_train = data.load_noise(n=1000, d=n_dim)
+    X_val, Y_val = X_train, Y_train
   else:
-    X_train, Y_train = data.load_h5(args.train)
-    X_val, Y_val = data.load_h5(args.test)
-    # also get the data dimensions
+    raise ValueError('Invalid dataset name: %s' % args.dataset)
   print 'dataset loaded.'
 
   # set up optimization params
