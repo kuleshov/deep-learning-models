@@ -6,6 +6,7 @@ from collections import OrderedDict
 import theano
 import theano.tensor as T
 import lasagne
+from theano.gradient import disconnected_grad as dg
 
 from model import Model
 
@@ -85,7 +86,7 @@ class SBN(Model):
     p_mu = lasagne.layers.get_output(l_p_mu, z, deterministic=deterministic)
 
     # entropy term
-    log_qz_given_x = log_bernoulli(z, q_mu).sum(axis=1)
+    log_qz_given_x = log_bernoulli(dg(z), q_mu).sum(axis=1)
 
     # expected p(x,z) term
     z_prior = T.ones_like(z)*np.float32(0.5)
@@ -110,8 +111,6 @@ class SBN(Model):
     return -elbo, -T.mean(log_qz_given_x)
 
   def create_gradients(self, loss, deterministic=False):
-    from theano.gradient import disconnected_grad as dg
-
     # load networks
     l_p_mu, l_q_mu, _, l_cv, c, v = self.network
 
@@ -126,10 +125,10 @@ class SBN(Model):
 
     # compute learning signals
     l = log_pxz - log_qz_given_x - cv
-    l_avg, l_std = l.mean(), T.maximum(1, l.std())
+    l_avg, l_var = l.mean(), l.var()
     c_new = 0.8*c + 0.2*l_avg
-    v_new = 0.8*v + 0.2*l_std
-    l = (l - c_new) / v_new
+    v_new = 0.8*v + 0.2*l_var
+    l = (l - c_new) / T.maximum(1, T.sqrt(v_new))
   
     # compute grad wrt p
     p_grads = T.grad(-log_pxz.mean(), p_params)
@@ -171,9 +170,9 @@ class SBN(Model):
 
     # compute learning signals
     l = log_pxz - log_qz_given_x - cv
-    l_avg, l_std = l.mean(), T.maximum(1, l.std())
+    l_avg, l_var = l.mean(), l.var()
     c_new = 0.8*c + 0.2*l_avg
-    v_new = 0.8*v + 0.2*l_std
+    v_new = 0.8*v + 0.2*l_var
 
     # compute update for centering signal
     cv_updates = {c : c_new, v : v_new}
