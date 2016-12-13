@@ -6,6 +6,7 @@ from collections import OrderedDict
 import theano
 import theano.tensor as T
 import lasagne
+from theano.gradient import disconnected_grad as dg
 
 from model import Model
 
@@ -81,7 +82,7 @@ class DADGM(Model):
         W=lasagne.init.GlorotNormal(),
         b=lasagne.init.Normal(1e-3),
         nonlinearity=relu_shift)
-    # l_qz = GaussianSampleLayer(l_qz_mu, l_qz_logsigma)
+    l_qz = GaussianSampleLayer(l_qz_mu, l_qz_logsigma)
 
     # create the decoder network
 
@@ -159,7 +160,8 @@ class DADGM(Model):
     # load network output
     qa_mu, qa_logsigma, a = lasagne.layers.get_output([l_qa_mu, l_qa_logsigma, l_qa],
                                                       deterministic=deterministic)
-    qz_mu, qz_logsigma, z = lasagne.layers.get_output([l_qz_mu, l_qz_logsigma, l_qz], {l_qz_in : a, l_qa_in : X}, 
+    # qz_mu, qz_logsigma, z = lasagne.layers.get_output([l_qz_mu, l_qz_logsigma, l_qz], {l_qz_in : a, l_qa_in : X}, 
+    qz_mu, qz_logsigma, z = lasagne.layers.get_output([l_qz_mu, l_qz_logsigma, l_qz], {l_qz_in : T.zeros_like(qa_mu), l_qa_in : X}, 
                                                     deterministic=deterministic)
     pa_mu, pa_logsigma = lasagne.layers.get_output([l_pa_mu, l_pa_logsigma], z,
                                                    deterministic=deterministic)
@@ -172,16 +174,17 @@ class DADGM(Model):
 
     # entropy term
     log_qa_given_x  = log_normal2(a, qa_mu, qa_logsigma).sum(axis=1)
-    log_qz_given_ax = log_bernoulli(z, qz_mu).sum(axis=1)
-    # log_qz_given_ax = log_normal2(z, qz_mu, qz_logsigma).sum(axis=1)
+    # log_qz_given_ax = log_bernoulli(z, qz_mu).sum(axis=1)
+    log_qz_given_ax = log_normal2(z, qz_mu, qz_logsigma).sum(axis=1)
+    log_qz_given_ax_dgz = log_normal2(dg(z), qz_mu, qz_logsigma).sum(axis=1)
     log_qza_given_x = log_qz_given_ax + log_qa_given_x
 
     # log-probability term
-    z_prior = T.ones_like(z)*np.float32(0.5)
-    log_pz = log_bernoulli(z, z_prior).sum(axis=1)
-    # z_prior_sigma = T.cast(T.ones_like(qz_logsigma), dtype=theano.config.floatX)
-    # z_prior_mu = T.cast(T.zeros_like(qz_mu), dtype=theano.config.floatX)
-    # log_pz = log_normal(z, z_prior_mu,  z_prior_sigma).sum(axis=1)
+    # z_prior = T.ones_like(z)*np.float32(0.5)
+    # log_pz = log_bernoulli(z, z_prior).sum(axis=1)
+    z_prior_sigma = T.cast(T.ones_like(qz_logsigma), dtype=theano.config.floatX)
+    z_prior_mu = T.cast(T.zeros_like(qz_mu), dtype=theano.config.floatX)
+    log_pz = log_normal(z, z_prior_mu,  z_prior_sigma).sum(axis=1)
     log_pa_given_z = log_normal2(a, pa_mu, pa_logsigma).sum(axis=1)
 
     if self.model == 'bernoulli':
@@ -191,11 +194,11 @@ class DADGM(Model):
 
     log_paxz = log_pa_given_z + log_px_given_z + log_pz
 
-    # experiment: uniform prior p(a)
-    a_prior_sigma = T.cast(T.ones_like(qa_logsigma), dtype=theano.config.floatX)
-    a_prior_mu = T.cast(T.zeros_like(qa_mu), dtype=theano.config.floatX)
-    log_pa = log_normal(a, a_prior_mu,  a_prior_sigma).sum(axis=1)
-    log_paxz = log_pa + log_px_given_z + log_pz
+    # # experiment: unit prior p(a) = N(0,1)
+    # a_prior_sigma = T.cast(T.ones_like(qa_logsigma), dtype=theano.config.floatX)
+    # a_prior_mu = T.cast(T.zeros_like(qa_mu), dtype=theano.config.floatX)
+    # log_pa = log_normal(a, a_prior_mu,  a_prior_sigma).sum(axis=1)
+    # log_paxz = log_pa + log_px_given_z + log_pz
 
     # save them for later
     if deterministic == False:
@@ -204,6 +207,7 @@ class DADGM(Model):
         self.log_pz = log_pz
         self.log_qa_given_x = log_qa_given_x
         self.log_qz_given_ax = log_qz_given_ax
+        self.log_qz_given_ax_dgz = log_qz_given_ax_dgz
 
     return log_paxz, log_qza_given_x
 
@@ -218,8 +222,6 @@ class DADGM(Model):
     return -elbo, T.mean(log_paxz)
 
   def create_gradients(self, loss, deterministic=False):
-    from theano.gradient import disconnected_grad as dg
-
     # load networks
     l_px_mu, l_px_logsigma, l_pa_mu, l_pa_logsigma, \
     l_qz_mu, l_qz_logsigma, l_qa_mu, l_qa_logsigma, \
@@ -237,15 +239,16 @@ class DADGM(Model):
     # load neural net outputs (probabilities have been precomputed)
     log_paxz, log_px_given_z, log_pz = self.log_paxz, self.log_px_given_z, self.log_pz
     log_qa_given_x, log_qz_given_ax = self.log_qa_given_x, self.log_qz_given_ax    
+    log_qz_given_ax_dgz = self.log_qz_given_ax_dgz
     log_qza_given_x = log_qz_given_ax + log_qa_given_x
     cv = T.addbroadcast(lasagne.layers.get_output(l_cv),1)
 
     # compute learning signals
     l0 = log_px_given_z + log_pz - log_qz_given_ax - cv
-    l_avg, l_std = l0.mean(), T.maximum(1, l0.std())
+    l_avg, l_var = l0.mean(), l0.var()
     c_new = 0.8*c + 0.2*l_avg
-    v_new = 0.8*v + 0.2*l_std
-    l = (l0 - c_new) / v_new
+    v_new = 0.8*v + 0.2*l_var
+    l = (l0 - c_new) / T.maximum(1, T.sqrt(v_new))
   
     # compute grad wrt p
     p_grads = T.grad(-log_paxz.mean(), p_params)
@@ -255,7 +258,7 @@ class DADGM(Model):
     qa_grads = T.grad(-elbo, qa_params)
 
     # compute grad wrt q_z
-    qz_target = T.mean(dg(l) * log_qz_given_ax)
+    qz_target = T.mean(dg(l) * log_qz_given_ax_dgz)
     qz_grads = T.grad(-0.2*qz_target, qz_params) # 5x slower rate for q
     # qz_grads = T.grad(-0.2*T.mean(l0), qz_params) # 5x slower rate for q
     # qz_grads = T.grad(-0.2*elbo, qz_params) # 5x slower rate for q
@@ -267,7 +270,8 @@ class DADGM(Model):
     # combine and clip gradients
     clip_grad = 1
     max_norm = 5
-    grads = p_grads + qa_grads + qz_grads + cv_grads
+    # grads = p_grads + qa_grads + qz_grads + cv_grads
+    grads = p_grads + qz_grads + cv_grads
     mgrads = lasagne.updates.total_norm_constraint(grads, max_norm=max_norm)
     cgrads = [T.clip(g, -clip_grad, clip_grad) for g in mgrads]
 
@@ -290,7 +294,8 @@ class DADGM(Model):
     qz_params  = lasagne.layers.get_all_params(l_qz, trainable=True)
     cv_params = lasagne.layers.get_all_params(l_cv, trainable=True)
 
-    return p_params + qa_params + qz_params + cv_params
+    # return p_params + qa_params + qz_params + cv_params
+    return p_params + qz_params + cv_params
 
   def create_updates(self, grads, params, alpha, opt_alg, opt_params):
     # call super-class to generate SGD/ADAM updates
@@ -311,9 +316,9 @@ class DADGM(Model):
 
     # compute learning signals
     l = log_px_given_z + log_pz - log_qz_given_ax - cv
-    l_avg, l_std = l.mean(), T.maximum(1, l.std())
+    l_avg, l_var = l.mean(), l.var()
     c_new = 0.8*c + 0.2*l_avg
-    v_new = 0.8*v + 0.2*l_std
+    v_new = 0.8*v + 0.2*l_var
 
     # compute update for centering signal
     cv_updates = {c : c_new, v : v_new}
