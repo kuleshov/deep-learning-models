@@ -27,7 +27,7 @@ class VAE(Model):
     # params
     n_lat = 200 # latent stochastic variabels
     n_hid = 500 # size of hidden layer in encoder/decoder
-    n_out = n_dim * n_dim * n_chan # total dimensionality of ouput
+    n_out = n_dim * n_dim * n_chan # total dimensionality of output
     hid_nl = lasagne.nonlinearities.tanh if self.model == 'bernoulli' \
              else T.nnet.softplus
     # hid_nl = lasagne.nonlinearities.rectified
@@ -78,7 +78,7 @@ class VAE(Model):
     return l_p_mu, l_p_logsigma, l_q_mu, l_q_logsigma, l_sample, l_p_z
 
   def create_objectives(self, deterministic=False):
-    return self.create_objectives_elbo(deterministic)
+    return self.create_objectives_analytic(deterministic)
 
   def create_objectives_analytic(self, deterministic=False):
     """ELBO objective with the analytic expectation trick"""
@@ -150,7 +150,6 @@ class VAE(Model):
     if self.model == 'bernoulli':
       q_mu, q_logsigma, p_mu, z \
            = lasagne.layers.get_output(self.network[2:], deterministic=deterministic)
-      l_q_mu, l_q_logsigma, l_p_mu, _ = self.network[2:]
     elif self.model == 'gaussian':
       raise NotImplementedError()
 
@@ -178,8 +177,11 @@ class VAE(Model):
     p_grads = T.grad(-log_pxz.mean(), p_params)
 
     # compute grad wrt q
-    q_target = T.mean(l * log_qz_given_x)
-    q_grads = T.grad(-0.2*q_target, q_params, consider_constant=[l]) # 5x slower rate for q
+    # q_target = T.mean(dg(l) * log_qz_given_x)
+    # q_grads = T.grad(-0.2*q_target, q_params) # 5x slower rate for q
+    log_qz_given_x = log_normal2(dg(z), q_mu, q_logsigma).sum(axis=1)
+    q_target = T.mean(dg(l) * log_qz_given_x)
+    q_grads = T.grad(-0.2*q_target, q_params) # 5x slower rate for q
     # q_grads = T.grad(-l.mean(), q_params) # 5x slower rate for q
 
     # # compute grad of cv net
