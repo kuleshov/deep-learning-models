@@ -116,12 +116,12 @@ class ADGM(Model):
     # l_pa_hid2 = lasagne.layers.ElemwiseSumLayer([l_pa_hid1a, l_pa_hid1b])
     # l_pa_hid2 = lasagne.layers.NonlinearityLayer(l_pa_hid2, hid_nl)
     # l_pa_mu = lasagne.layers.DenseLayer(
-    #     l_pa_hid2, num_units=n_lat,
+    #     l_pa_hid2, num_units=n_aux,
     #     W=lasagne.init.GlorotNormal(),
     #     b=lasagne.init.Normal(1e-3),
     #     nonlinearity=None)
     # l_pa_logsigma = lasagne.layers.DenseLayer(
-    #     l_pa_hid2, num_units=n_lat,
+    #     l_pa_hid2, num_units=n_aux,
     #     W=lasagne.init.GlorotNormal(),
     #     b=lasagne.init.Normal(1e-3),
     #     nonlinearity=relu_shift)
