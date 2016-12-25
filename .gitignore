@@ -87,3 +87,12 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# data
+*.pkl
+*.tgz
+*.gz
+
+# sublime text
+*.sublime-project
+*.sublime-workspace
