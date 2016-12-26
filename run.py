@@ -62,7 +62,10 @@ def train(args):
   import numpy as np
   np.random.seed(1234)
 
-  if args.dataset == 'mnist':
+  if args.dataset == 'digits':
+    n_dim, n_out, n_channels = 8, 10, 1
+    X_train, Y_train, X_val, Y_val = data.load_digits()
+  elif args.dataset == 'mnist':
     n_dim, n_out, n_channels = 28, 10, 1
     X_train, Y_train, X_val, Y_val, _, _ = data.load_mnist()
   elif args.dataset == 'cifar10':

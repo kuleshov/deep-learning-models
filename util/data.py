@@ -4,6 +4,12 @@ import pickle
 import tarfile
 
 import numpy as np
+from scipy.ndimage import convolve
+try:
+  from sklearn import datasets
+  from sklearn.cross_validation import train_test_split
+except ImportError:
+  print "Warning: Couldn't load scikit-learn"
 
 # ----------------------------------------------------------------------------
 
@@ -117,6 +123,21 @@ def load_mnist():
 # ----------------------------------------------------------------------------
 # other
 
+def load_digits():
+    digits = datasets.load_digits()
+    X = np.asarray(digits.data, 'float32')
+    X, Y = nudge_dataset(X, digits.target)
+    X = (X - np.min(X, 0)) / (np.max(X, 0) + 0.0001)  # 0-1 scaling
+    n, d2 = X.shape
+    d = int(np.sqrt(d2))
+    X = X.reshape((n,1,d,d))
+    Y = np.array(Y, dtype=np.uint8)
+
+    X_train, X_test, Y_train, Y_test = train_test_split(X, Y,
+                                                        test_size=0.2,
+                                                        random_state=0)
+    return X_train, Y_train, X_test, Y_test
+
 def load_noise(n=100,d=5):
   """For debugging"""
   X = np.random.randint(2,size=(n,1,d,d)).astype('float32')
@@ -135,4 +156,34 @@ def load_h5(h5_path):
     print 'Shape of X: \n', X.shape
     print 'Shape of Y: \n', Y.shape
 
+    return X, Y
+
+def nudge_dataset(X, Y):
+    """
+    This produces a dataset 5 times bigger than the original one,
+    by moving the 8x8 images in X around by 1px to left, right, down, up
+    """
+    direction_vectors = [
+        [[0, 1, 0],
+         [0, 0, 0],
+         [0, 0, 0]],
+
+        [[0, 0, 0],
+         [1, 0, 0],
+         [0, 0, 0]],
+
+        [[0, 0, 0],
+         [0, 0, 1],
+         [0, 0, 0]],
+
+        [[0, 0, 0],
+         [0, 0, 0],
+         [0, 1, 0]]]
+
+    shift = lambda x, w: convolve(x.reshape((8, 8)), mode='constant',
+                                  weights=w).ravel()
+    X = np.concatenate([X] +
+                       [np.apply_along_axis(shift, 1, X, vector)
+                        for vector in direction_vectors])
+    Y = np.concatenate([Y for _ in range(5)], axis=0)
     return X, Y
