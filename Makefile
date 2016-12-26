@@ -1,11 +1,11 @@
 PYTHON=/usr/bin/python27
 PYTHON=python
 
-EPOCHS=200
+EPOCHS=50
 NAME=experiment
 
 DATASET=mnist
-MODEL=adgm
+MODEL=dadgm
 ALG=adam
 
 LR=3e-4

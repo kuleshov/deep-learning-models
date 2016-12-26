@@ -84,8 +84,7 @@ class DADGM(Model):
 
     if self.model == 'bernoulli':
       l_px_mu = lasagne.layers.DenseLayer(l_px_hid, num_units=n_out,
-          nonlinearity = lasagne.nonlinearities.sigmoid,
-          W=lasagne.init.GlorotUniform())
+          nonlinearity = lasagne.nonlinearities.sigmoid)
     elif self.model == 'gaussian':
       l_px_mu = lasagne.layers.DenseLayer(
           l_px_hid, num_units=n_out,
@@ -97,13 +96,9 @@ class DADGM(Model):
     # create p(a|z)
     l_pa_hid = lasagne.layers.DenseLayer(
       l_px_in, num_units=n_hid,
-      nonlinearity=hid_nl,
-      W=lasagne.init.GlorotNormal('relu'),
-      b=lasagne.init.Normal(1e-3))
+      nonlinearity=hid_nl)
     l_pa_mu = lasagne.layers.DenseLayer(
         l_pa_hid, num_units=n_aux,
-        W=lasagne.init.GlorotNormal(),
-        b=lasagne.init.Normal(1e-3),
         nonlinearity=None)
     l_pa_logsigma = lasagne.layers.DenseLayer(
         l_pa_hid, num_units=n_aux,
