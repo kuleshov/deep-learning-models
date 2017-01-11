@@ -107,7 +107,10 @@ def train(args):
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)        
   elif args.model == 'dadgm':
     model = models.DADGM(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
-                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)          
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p) 
+  elif args.model == 'dcgan':
+    model = models.DCGAN(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)                                    
   else:
     raise ValueError('Invalid model')
   

@@ -8,7 +8,9 @@ import lasagne
 
 from model import Model
 
-from layers import GaussianSampleLayer
+from layers.sampling import GaussianSampleLayer
+from layers.sampling import GaussianMultiSampleLayer
+from layers.shape import RepeatLayer
 
 from distributions import log_bernoulli, log_normal, log_normal2
 
@@ -20,6 +22,7 @@ class ADGM(Model):
                 opt_alg='adam', opt_params={'lr' : 1e-3, 'b1': 0.9, 'b2': 0.99}):
     # save model that wil be created
     self.model = model
+    self.n_sample = 1 # adjustable parameter, though 1 works best in practice
 
     Model.__init__(self, n_dim, n_chan, n_out, n_superbatch, opt_alg, opt_params)
   
@@ -27,14 +30,15 @@ class ADGM(Model):
     # params
     n_lat = 200 # latent stochastic variables
     n_aux = 10  # auxiliary variables
-    n_hid = 500 # size of hidden layer in encoder/decoder
+    n_hid = 499 # size of hidden layer in encoder/decoder
+    n_sam = self.n_sample # number of monte-carlo samples
     n_out = n_dim * n_dim * n_chan # total dimensionality of ouput
     hid_nl = lasagne.nonlinearities.rectify
     relu_shift = lambda av: T.nnet.relu(av+10)-10 # for numerical stability
 
     # create the encoder network
 
-    # create q(a|x)
+    # create q(a|x,y)
     l_qa_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
                                      input_var=X)
     l_qa_hid = lasagne.layers.DenseLayer(
@@ -52,6 +56,12 @@ class ADGM(Model):
         W=lasagne.init.GlorotNormal(),
         b=lasagne.init.Normal(1e-3),
         nonlinearity=relu_shift)
+    l_qa_mu = lasagne.layers.ReshapeLayer(
+        RepeatLayer(l_qa_mu, n_ax=1, n_rep=n_sam),
+        shape=(-1, n_aux))
+    l_qa_logsigma = lasagne.layers.ReshapeLayer(
+        RepeatLayer(l_qa_logsigma, n_ax=1, n_rep=n_sam),
+        shape=(-1, n_aux))
     l_qa = GaussianSampleLayer(l_qa_mu, l_qa_logsigma)
 
     # create q(z|a,x)
@@ -65,6 +75,9 @@ class ADGM(Model):
         W=lasagne.init.GlorotNormal('relu'),
         b=lasagne.init.Normal(1e-3),
         nonlinearity=hid_nl)
+    l_qz_hid1b = lasagne.layers.ReshapeLayer(
+        RepeatLayer(l_qz_hid1b, n_ax=1, n_rep=n_sam),
+        shape=(-1, n_hid))
     l_qz_hid2 = lasagne.layers.ElemwiseSumLayer([l_qz_hid1a, l_qz_hid1b])
     l_qz_hid2 = lasagne.layers.NonlinearityLayer(l_qz_hid2, hid_nl)
     l_qz_mu = lasagne.layers.DenseLayer(
@@ -78,6 +91,8 @@ class ADGM(Model):
         b=lasagne.init.Normal(1e-3),
         nonlinearity=relu_shift)
     l_qz = GaussianSampleLayer(l_qz_mu, l_qz_logsigma)
+    # l_qz = GaussianMultiSampleLayer(l_qz_mu, l_qz_logsigma, n_samples=n_sam)
+    # l_qz = lasagne.layers.ReshapeLayer(l_qz, [-1, n_lat])
 
     # create the decoder network
 
@@ -151,6 +166,11 @@ class ADGM(Model):
     # load network input
     X = self.inputs[0]
     x = X.flatten(2)
+
+    # duplicate entries to take into account multiple mc samples
+    n_sam = self.n_sample
+    n_out = x.shape[1]
+    x = x.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_out))
 
     # load network
     l_px_mu, l_px_logsigma, l_pa_mu, l_pa_logsigma, \

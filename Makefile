@@ -5,11 +5,11 @@ EPOCHS=200
 NAME=experiment
 
 DATASET=mnist
-MODEL=dcgan
+MODEL=adgm
 ALG=adam
 
-LR=2e-4
-B1=0.5
+LR=3e-4
+B1=0.9
 B2=0.999
 SUPERBATCH=1024
 NB=128
