@@ -1,18 +1,18 @@
 PYTHON=/usr/bin/python27
 PYTHON=python
 
-EPOCHS=50
+EPOCHS=200
 NAME=experiment
 
 DATASET=mnist
-MODEL=dadgm
+MODEL=dcgan
 ALG=adam
 
-LR=3e-4
-B1=0.9
+LR=2e-4
+B1=0.5
 B2=0.999
 SUPERBATCH=1024
-NB=256
+NB=128
 
 # ----------------------------------------------------------------------------
 

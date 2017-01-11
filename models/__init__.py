@@ -5,6 +5,7 @@ from vae import VAE
 from sbn import SBN
 from adgm import ADGM
 from dadgm import DADGM
+from dcgan import DCGAN
 
 try:
   from resnet import Resnet
