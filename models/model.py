@@ -74,7 +74,6 @@ class Model(object):
     # save neural network
     self.params = self.get_params()
     self.grads = (grads, grads_test)
-    self.metrics = (loss, acc)
 
   def create_objectives(self, deterministic=False):
     # load network
