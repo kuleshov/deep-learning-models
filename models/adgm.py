@@ -9,7 +9,6 @@ import lasagne
 from model import Model
 
 from layers.sampling import GaussianSampleLayer
-from layers.sampling import GaussianMultiSampleLayer
 from layers.shape import RepeatLayer
 
 from distributions import log_bernoulli, log_normal, log_normal2
@@ -38,7 +37,7 @@ class ADGM(Model):
 
     # create the encoder network
 
-    # create q(a|x,y)
+    # create q(a|x)
     l_qa_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
                                      input_var=X)
     l_qa_hid = lasagne.layers.DenseLayer(
@@ -91,8 +90,6 @@ class ADGM(Model):
         b=lasagne.init.Normal(1e-3),
         nonlinearity=relu_shift)
     l_qz = GaussianSampleLayer(l_qz_mu, l_qz_logsigma)
-    # l_qz = GaussianMultiSampleLayer(l_qz_mu, l_qz_logsigma, n_samples=n_sam)
-    # l_qz = lasagne.layers.ReshapeLayer(l_qz, [-1, n_lat])
 
     # create the decoder network
 
