@@ -5,7 +5,7 @@ EPOCHS=200
 NAME=experiment
 
 DATASET=mnist
-MODEL=adgm
+MODEL=ssadgm
 ALG=adam
 
 LR=3e-4

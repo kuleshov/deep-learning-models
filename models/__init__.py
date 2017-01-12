@@ -6,6 +6,7 @@ from sbn import SBN
 from adgm import ADGM
 from dadgm import DADGM
 from dcgan import DCGAN
+from ssadgm import SSADGM
 
 try:
   from resnet import Resnet

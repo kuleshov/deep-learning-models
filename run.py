@@ -64,18 +64,18 @@ def train(args):
 
   if args.dataset == 'digits':
     n_dim, n_out, n_channels = 8, 10, 1
-    X_train, Y_train, X_val, Y_val = data.load_digits()
+    X_train, y_train, X_val, y_val = data.load_digits()
   elif args.dataset == 'mnist':
     n_dim, n_out, n_channels = 28, 10, 1
-    X_train, Y_train, X_val, Y_val, _, _ = data.load_mnist()
+    X_train, y_train, X_val, y_val, _, _ = data.load_mnist()
   elif args.dataset == 'cifar10':
     n_dim, n_out, n_channels = 32, 10, 3
-    X_train, Y_train, X_val, Y_val = data.load_cifar10()
+    X_train, y_train, X_val, y_val = data.load_cifar10()
     X_train, X_val = data.whiten(X_train, X_val)
   elif args.dataset == 'random':
     n_dim, n_out, n_channels = 2, 2, 1
-    X_train, Y_train = data.load_noise(n=1000, d=n_dim)
-    X_val, Y_val = X_train, Y_train
+    X_train, y_train = data.load_noise(n=1000, d=n_dim)
+    X_val, y_val = X_train, y_train
   else:
     raise ValueError('Invalid dataset name: %s' % args.dataset)
   print 'dataset loaded.'
@@ -110,12 +110,15 @@ def train(args):
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p) 
   elif args.model == 'dcgan':
     model = models.DCGAN(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
-                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)                                    
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)   
+  elif args.model == 'ssadgm':
+    model = models.SSADGM(X_labeled=X_train, y_labeled=y_train, n_out=n_out,
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)                                                              
   else:
     raise ValueError('Invalid model')
   
   # train model
-  model.fit(X_train, Y_train, X_val, Y_val, 
+  model.fit(X_train, y_train, X_val, y_val, 
             n_epoch=args.epochs, n_batch=args.n_batch,
             logname=args.logname)
 
