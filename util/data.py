@@ -123,6 +123,17 @@ def load_mnist():
 # ----------------------------------------------------------------------------
 # other
 
+def split_semisup(X, y, n_lbl):
+  n_tot = len(X)
+  idx = np.random.permutation(n_tot)
+  
+  X_lbl = X[idx[:n_lbl]].copy()
+  X_unl = X[idx[n_lbl:]].copy()
+  y_lbl = y[idx[:n_lbl]].copy()
+  y_unl = y[idx[n_lbl:]].copy()
+
+  return X_lbl, y_lbl, X_unl, y_unl
+
 def load_digits():
     digits = datasets.load_digits()
     X = np.asarray(digits.data, 'float32')

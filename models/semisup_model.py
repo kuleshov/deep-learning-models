@@ -66,16 +66,21 @@ class SemiSupModel(object):
     updates = self.create_updates(grads, params, alpha, opt_alg, opt_params)
 
     # create methods for training / prediction
-    var_assignments = {
+    train_var_asgn = {
       L  : lab_train_set_x,
       yl : lab_train_set_y_int,
-      # X  : unl_train_set_x[idx1:idx2], 
-      # yu : unl_train_set_y_int[idx1:idx2]
+      X  : unl_train_set_x[idx1:idx2], 
+      yu : unl_train_set_y_int[idx1:idx2]
     }
-
     self.train = theano.function([idx1, idx2, alpha], [loss, acc], updates=updates,
-                                 givens=var_assignments, on_unused_input='warn')
-    self.loss = theano.function([L, yl], [loss, acc], on_unused_input='warn')
+                                 givens=train_var_asgn, on_unused_input='warn')
+
+    loss_var_asgn = {
+      L  : lab_train_set_x,
+      yl : lab_train_set_y_int,
+    }
+    self.loss = theano.function([X, yu], [loss, acc], givens=loss_var_asgn, 
+                                on_unused_input='warn')
 
     # save config
     self.n_dim = n_dim

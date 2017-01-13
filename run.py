@@ -23,6 +23,7 @@ def make_parser():
   train_parser.add_argument('--b2', type=float, default=0.999)
   train_parser.add_argument('--n_batch', type=int, default=128)
   train_parser.add_argument('--n_superbatch', type=int, default=1280)
+  train_parser.add_argument('--n_labeled', type=int, default=1000)
 
   # plot
 
@@ -112,8 +113,11 @@ def train(args):
     model = models.DCGAN(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)   
   elif args.model == 'ssadgm':
-    model = models.SSADGM(X_labeled=X_train, y_labeled=y_train, n_out=n_out,
-                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)                                                              
+    X_train_lbl, y_train_lbl, X_train_unl, y_train_unl \
+      = data.split_semisup(X_train, y_train, n_lbl=args.n_labeled)
+    model = models.SSADGM(X_labeled=X_train_lbl, y_labeled=y_train_lbl, n_out=n_out,
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)
+    X_train, y_train = X_train_unl, y_train_unl
   else:
     raise ValueError('Invalid model')
   

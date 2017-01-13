@@ -13,6 +13,7 @@ B1=0.9
 B2=0.999
 SUPERBATCH=1024
 NB=128
+NLBL=1024
 
 # ----------------------------------------------------------------------------
 
@@ -27,7 +28,8 @@ train:
 	  --b1 $(B1) \
 	  --b2 $(B2) \
 	  --n_superbatch $(SUPERBATCH) \
-	  --n_batch $(NB)
+	  --n_batch $(NB) \
+	  --n_label $(NLBL)
 
 grid:
 	$(PYTHON) run.py grid \
