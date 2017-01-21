@@ -33,12 +33,17 @@ The following algorithms are available.
 * `cnn`: convolutional neural network; solves `mnist` and achieves reasonably good accuracy on `cifar10`
 * `resnet`: small residual network; achieves an accuracy in the 80's on `cifar10`
 
+### Semi-supervised models
+
+* `ssdadgm`: semi-supervised deep generative models (in progress)
+
 ### Unsupervised models
 
 * `vae`: variational autoencoder
 * `sbn`: sigmoid belief network trained with neural variational inference
 * `adgm`: auxiliary deep generative model (unsupervised version)
 * `dadgm`: discrete-variable auxiliary deep generative model (unsupervised version, also trained with NVIL)
+* `dcgan`: small deep convolutional generative adversarial network (tested on mnist)
 
 ## Datasets
 
