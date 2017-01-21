@@ -125,8 +125,8 @@ class SSADGM(SemiSupModel):
         RepeatLayer(l_qz_hid1c, n_ax=1, n_rep=n_sam),
         shape=(-1, n_hid))
     l_qz_hid2 = (lasagne.layers.ElemwiseSumLayer(
-        [l_qz_hid1a, l_qz_hid1b]))
-        # [l_qz_hid1a, l_qz_hid1b, l_qz_hid1c]))
+        # [l_qz_hid1a, l_qz_hid1b]))
+        [l_qz_hid1a, l_qz_hid1b, l_qz_hid1c]))
     l_qz_hid2 = lasagne.layers.NonlinearityLayer(l_qz_hid2, hid_nl)
     # l_qz_hid3 = (lasagne.layers.DenseLayer(
     #     l_qz_hid2, num_units=n_hid,
@@ -162,8 +162,8 @@ class SSADGM(SemiSupModel):
         RepeatLayer(l_px_hid1b, n_ax=1, n_rep=n_sam),
         shape=(-1, n_hid))
     l_px_hid2 = (lasagne.layers.ElemwiseSumLayer(
-        [l_px_hid1a]))
-        # [l_px_hid1a, l_px_hid1b]))
+        # [l_px_hid1a]))
+        [l_px_hid1a, l_px_hid1b]))
     l_px_hid2 = lasagne.layers.NonlinearityLayer(l_px_hid2, hid_nl)
     # l_px_hid3 = (lasagne.layers.DenseLayer(
     #     l_px_hid2, num_units=n_hid,
@@ -208,8 +208,8 @@ class SSADGM(SemiSupModel):
         RepeatLayer(l_pa_hid1c, n_ax=1, n_rep=n_sam),
         shape=(-1, n_hid))
     l_pa_hid2 = (lasagne.layers.ElemwiseSumLayer(
-        [l_pa_hid1a, l_pa_hid1b]))
-        # [l_pa_hid1a, l_pa_hid1b, l_pa_hid1c]))
+        # [l_pa_hid1a, l_pa_hid1b]))
+        [l_pa_hid1a, l_pa_hid1b, l_pa_hid1c]))
     l_pa_hid2 = lasagne.layers.NonlinearityLayer(l_pa_hid2, hid_nl)
     # l_pa_hid3 = (lasagne.layers.DenseLayer(
     #   l_pa_hid2, num_units=n_hid,
@@ -379,7 +379,7 @@ class SSADGM(SemiSupModel):
     x = L.flatten(2)
     x = x.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_vis))
     yl = lasagne.utils.one_hot(yl, m=n_out)
-    yl = yl.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_out))
+    yl_rep = yl.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_out))
 
     # load network
     l_px_mu, l_px_logsigma, l_pa_mu, l_pa_logsigma, \
@@ -389,8 +389,8 @@ class SSADGM(SemiSupModel):
     # first, we construct the ELBO on the labeled examples
     
     # load network output
-    # input_asgn = { l_qx_in : L, l_qy_in : yl }
-    input_asgn = { l_qx_in : L }
+    input_asgn = { l_qx_in : L, l_qy_in : yl }
+    # input_asgn = { l_qx_in : L }
     pa_mu, pa_logsigma, qz_mu, qz_logsigma, qa_mu, qa_logsigma, qy_mu, a, z \
       = lasagne.layers.get_output(
           [ l_pa_mu, l_pa_logsigma, l_qz_mu, l_qz_logsigma, 
@@ -414,7 +414,7 @@ class SSADGM(SemiSupModel):
     y_prior        = T.cast(T.ones((n_lbl*n_sam, n_out)) / n_out, dtype=theano.config.floatX)
     log_pz         = log_normal(z, z_prior_mu,  z_prior_sigma).sum(axis=1)
     log_pa_given_z = log_normal2(a, pa_mu, pa_logsigma).sum(axis=1)
-    log_py         = -lasagne.objectives.categorical_crossentropy(y_prior, yl)
+    log_py         = -lasagne.objectives.categorical_crossentropy(y_prior, yl_rep)
 
     if self.model == 'bernoulli':
       log_px_given_z = log_bernoulli(x, px_mu).sum(axis=1)
@@ -426,60 +426,70 @@ class SSADGM(SemiSupModel):
     # compute the evidence lower bound
     elbo_lbl = T.mean(log_paxzy - log_qza_given_xy, axis=0)
 
-    # # next, we build the elbo on the unlabeled examples
+    # next, we build the elbo on the unlabeled examples
 
-    # # we are going to replicate the batch n_out times, once for each label
-    # I = T.eye(n_out)
-    # t = I.reshape((n_out, 1, n_out)).repeat(n_unl, axis=1).reshape((-1, n_out))
-    # U = X.reshape((1, n_unl, n_chan, n_dim, n_dim)).repeat(n_out, axis=0) \
-    #      .reshape((-1, n_chan, n_dim, n_dim))
-    # u = U.flatten(2)
+    # n_rep
 
-    # # load network output
-    # # not going to try to be fancy right now (commenting this out):
-    # # a_unl = get_output(l_qa, X)
-    # # a_unl_rep = a_unl.reshape((1, n_unl*n_sam, n_aux)) \
-    # #                  .repeat(n_out, axis=0).reshape((-1, n_aux))
+    # we are going to replicate the batch n_out times, once for each label
+    I = T.eye(n_out)
+    t = I.reshape((n_out, 1, n_out)).repeat(n_unl, axis=1).reshape((-1, n_out))
+    U = X.dimshuffle(('x', 0, 1, 2, 3)).repeat(10, axis=0) \
+         .reshape((-1, n_chan, n_dim, n_dim))
+    
 
-    # input_asgn = { l_qx_in : U, l_qy_in : t }
-    # pa_mu, pa_logsigma, qz_mu, qz_logsigma, qa_mu, qa_logsigma, qy_mu, a, z \
-    #   = lasagne.layers.get_output(
-    #       [ l_pa_mu, l_pa_logsigma, l_qz_mu, l_qz_logsigma, 
-    #         l_qa_mu, l_qa_logsigma, l_qy_mu, l_qa, l_qz ],
-    #       input_asgn, deterministic=deterministic)
+    # duplicate entries to take into account multiple mc samples
+    u = U.flatten(2)
+    u = u.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_vis))
+    t_rep = t.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_out))
 
-    # if self.model == 'bernoulli':
-    #   px_mu = lasagne.layers.get_output(l_px_mu, input_asgn, deterministic=deterministic)
-    # elif self.model == 'gaussian':
-    #   px_mu, px_logsigma = lasagne.layers.get_output([l_px_mu, l_px_logsigma], input_asgn,
-    #                                                  deterministic=deterministic)
+    yu = lasagne.utils.one_hot(yu, m=n_out)
+    yu_rep = yu.dimshuffle(0,'x',1).repeat(n_sam, axis=1).reshape((-1, n_out))
 
-    # # entropy term
-    # log_qa_given_x   = log_normal2(a, qa_mu, qa_logsigma).sum(axis=1)
-    # log_qz_given_ayx = log_normal2(z, qz_mu, qz_logsigma).sum(axis=1)
-    # log_qy_given_ax  = log_bernoulli(t, qy_mu).sum(axis=1)
-    # log_qza_given_xy = log_qz_given_ayx + log_qa_given_x + log_qy_given_ax
+    # load network output
+    # not going to try to be fancy right now (commenting this out):
+    # a_unl = get_output(l_qa, X)
+    # a_unl_rep = a_unl.reshape((1, n_unl*n_sam, n_aux)) \
+    #                  .repeat(n_out, axis=0).reshape((-1, n_aux))
 
-    # # log-probability term
-    # z_prior_sigma  = T.cast(T.ones_like(qz_logsigma), dtype=theano.config.floatX)
-    # z_prior_mu     = T.cast(T.zeros_like(qz_mu), dtype=theano.config.floatX)
-    # y_prior        = T.cast(T.ones((n_out*n_unl*n_sam, n_out)) / n_out, dtype=theano.config.floatX)
-    # log_pz         = log_normal(z, z_prior_mu,  z_prior_sigma).sum(axis=1)
-    # log_pa_given_z = log_normal2(a, pa_mu, pa_logsigma).sum(axis=1)
-    # log_py         = -lasagne.objectives.categorical_crossentropy(y_prior, t)
+    input_asgn = { l_qx_in : U, l_qy_in : t }
+    pa_mu, pa_logsigma, qz_mu, qz_logsigma, qa_mu, qa_logsigma, qy_mu, a, z \
+      = lasagne.layers.get_output(
+          [ l_pa_mu, l_pa_logsigma, l_qz_mu, l_qz_logsigma, 
+            l_qa_mu, l_qa_logsigma, l_qy_mu, l_qa, l_qz ],
+          input_asgn, deterministic=deterministic)
 
-    # if self.model == 'bernoulli':
-    #   log_px_given_z = log_bernoulli(u, px_mu).sum(axis=1)
-    # elif self.model == 'gaussian':
-    #   log_px_given_z = log_normal2(u, px_mu, px_logsigma).sum(axis=1)
+    if self.model == 'bernoulli':
+      px_mu = lasagne.layers.get_output(l_px_mu, input_asgn, deterministic=deterministic)
+    elif self.model == 'gaussian':
+      px_mu, px_logsigma = lasagne.layers.get_output([l_px_mu, l_px_logsigma], input_asgn,
+                                                     deterministic=deterministic)
 
-    # log_paxzy = log_pa_given_z + log_px_given_z + log_pz + log_py
+    # entropy term
+    log_qa_given_x   = log_normal2(a, qa_mu, qa_logsigma).sum(axis=1)
+    log_qz_given_ayx = log_normal2(z, qz_mu, qz_logsigma).sum(axis=1)
+    log_qy_given_ax  = log_bernoulli(t_rep, qy_mu).sum(axis=1)
+    log_qza_given_xy = log_qz_given_ayx + log_qa_given_x + log_qy_given_ax
 
-    # # compute the evidence lower bound
-    # elbo_unl = T.mean(log_paxzy - log_qza_given_xy, axis=0)
+    # log-probability term
+    z_prior_sigma  = T.cast(T.ones_like(qz_logsigma), dtype=theano.config.floatX)
+    z_prior_mu     = T.cast(T.zeros_like(qz_mu), dtype=theano.config.floatX)
+    y_prior        = T.cast(T.ones((n_out*n_unl*n_sam, n_out)) / n_out, dtype=theano.config.floatX)
+    log_pz         = log_normal(z, z_prior_mu,  z_prior_sigma).sum(axis=1)
+    log_pa_given_z = log_normal2(a, pa_mu, pa_logsigma).sum(axis=1)
+    log_py         = -lasagne.objectives.categorical_crossentropy(y_prior, t_rep)
+
+    if self.model == 'bernoulli':
+      log_px_given_z = log_bernoulli(u, px_mu).sum(axis=1)
+    elif self.model == 'gaussian':
+      log_px_given_z = log_normal2(u, px_mu, px_logsigma).sum(axis=1)
+
+    log_paxzy = log_pa_given_z + log_px_given_z + log_pz + log_py
+
+    # compute the evidence lower bound
+    elbo_unl = T.mean(log_paxzy - log_qza_given_xy, axis=0)
 
     # compute the total lower bound
-    elbo = elbo_lbl #+ elbo_unl
+    elbo = elbo_lbl + elbo_unl
 
     # in case we want regularization:
     # l2_reg = 0.0
@@ -488,8 +498,13 @@ class SSADGM(SemiSupModel):
     #   l2_reg += log_normal(p, 0, 1).sum()
     # elbo_lbl += l2_reg 
 
-    # we don't use a spearate accuracy metric right now
-    return -elbo, -elbo_lbl
+    # finally, compute the accuracy
+    y_pred = lasagne.layers.get_output(l_qy_mu, X, deterministic=True) \
+             .reshape((n_unl, n_sam, n_out)) \
+             .mean(axis=1)
+    acc = lasagne.objectives.categorical_accuracy(y_pred, yu).mean()
+
+    return -elbo, acc
 
   def create_gradients(self, loss, deterministic=False):
     grads = SemiSupModel.create_gradients(self, loss, deterministic)
