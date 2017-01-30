@@ -94,6 +94,9 @@ def train(args):
   elif args.model == 'cnn':
     model = models.CNN(n_dim=n_dim, n_out=n_out, n_chan=n_channels, model=args.dataset,
                        n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)  
+  elif args.model == 'kcnn':
+    model = models.KCNN(n_dim=n_dim, n_out=n_out, n_chan=n_channels, model=args.dataset,
+                       n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)    
   elif args.model == 'resnet':
     model = models.Resnet(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)    
