@@ -50,9 +50,11 @@ class Model(object):
     updates = self.create_updates(grads, params, alpha, opt_alg, opt_params)
 
     # create methods for training / prediction
+    # from theano.compile.nanguardmode import NanGuardMode
     self.train = theano.function([idx1, idx2, alpha], [loss, acc], updates=updates,
                                  givens={X : train_set_x[idx1:idx2], Y : train_set_y_int[idx1:idx2]},
                                  on_unused_input='warn')
+                                 # mode=NanGuardMode(nan_is_error=True, inf_is_error=True, big_is_error=False))
     self.loss = theano.function([X, Y], [loss, acc], on_unused_input='warn')
     
     # # TODO: implement a create_predictions method
