@@ -21,12 +21,3 @@ try:
   from ssadgm import SSADGM
 except:
   print 'WARNING: Could not import the SSADGM model'  
-
-# import keras models if we're using the theano backend
-# (the tensorflow backend will conflict with main theano code)
-try:
-  import keras.backend as K
-  if K.backend() == 'theano':
-    from kcnn import KCNN
-except:
-  pass
