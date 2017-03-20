@@ -72,6 +72,8 @@ def train(args):
   elif args.dataset == 'svhn':
     n_dim, n_out, n_channels = 32, 10, 3
     X_train, y_train, X_val, y_val = data.load_svhn()
+    # X_train, y_train, X_val, y_val = data.prepare_dataset(X_train, y_train, X_val, y_val, aug_translation=2)
+    print X_train.shape
   elif args.dataset == 'cifar10':
     n_dim, n_out, n_channels = 32, 10, 3
     X_train, y_train, X_val, y_val = data.load_cifar10()
@@ -104,13 +106,15 @@ def train(args):
     model = models.Resnet(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)    
   elif args.model == 'vae':
-    model = models.VAE(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
-                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)    
+    model = models.VAE(n_dim=n_dim, n_out=n_out, n_chan=n_channels, n_batch=args.n_batch,
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p,
+                          model='bernoulli')    
+                          # model='svhn' if args.dataset == 'svhn' else 'bernoulli')    
   elif args.model == 'sbn':
     model = models.SBN(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)      
   elif args.model == 'adgm':
-    model = models.ADGM(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
+    model = models.ADGM(n_dim=n_dim, n_out=n_out, n_chan=n_channels, n_batch=args.n_batch,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)        
   elif args.model == 'dadgm':
     model = models.DADGM(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
