@@ -22,9 +22,17 @@ class VAE(Model):
     # save model that wil be created
     self.model = model
     self.n_batch = n_batch
+    self.n_lat = 100
+    self.n_dim = n_dim
 
     # invoke parent constructor
     Model.__init__(self, n_dim, n_chan, n_out, n_superbatch, opt_alg, opt_params)
+
+    # sample generation
+    Z = T.matrix(dtype=theano.config.floatX) # noise matrix
+    _, _, _, _, l_sample, l_p_z = self.network
+    sample = lasagne.layers.get_output(l_sample,  {l_p_z : Z}, deterministic=True)
+    self.sample = theano.function([Z], sample, on_unused_input='warn')
 
   def create_model(self, X, Y, n_dim, n_out, n_chan=1):
     if self.model == 'svhn':
@@ -95,7 +103,7 @@ class VAE(Model):
 
   def create_std_model(self, X, Y, n_dim, n_out, n_chan=1):
     # params
-    n_lat = 200 # latent stochastic variabels
+    n_lat = self.n_lat # latent stochastic variabels
     n_hid = 500 # size of hidden layer in encoder/decoder
     n_out = n_dim * n_dim * n_chan # total dimensionality of output
     hid_nl = lasagne.nonlinearities.tanh if self.model == 'bernoulli' \
@@ -149,9 +157,6 @@ class VAE(Model):
 
 
   def create_objectives(self, deterministic=False):
-    return self.create_objectives_analytic(deterministic)
-
-  def create_objectives_analytic(self, deterministic=False):
     """ELBO objective with the analytic expectation trick"""
     # load network input
     X = self.inputs[0]
@@ -181,7 +186,7 @@ class VAE(Model):
 
     # we don't use the spearate accuracy metric right now
     return loss, -kl_div
-    
+
   def _get_net_params(self):
     # load network output
     if self.model == 'bernoulli':
@@ -200,3 +205,22 @@ class VAE(Model):
   def get_params(self):
     p_params, q_params = self._get_net_params()
     return p_params + q_params
+
+  def gen_samples(self, n_sam):
+    n_lat, n_dim = self.n_lat, self.n_dim
+    noise = np.random.randn(n_sam, n_lat).astype(theano.config.floatX)
+    # noise = np.zeros((n_sam, n_lat))
+    # noise[range(n_sam), np.random.choice(n_lat, n_sam)] = 1
+
+    assert np.sqrt(n_sam) == int(np.sqrt(n_sam))
+    n_side = int(np.sqrt(n_sam))
+
+    p_mu = self.sample(noise)
+    p_mu = p_mu.reshape((n_side, n_side, n_dim, n_dim))
+    # split into n_side (1,n_side,n_dim,n_dim) images,
+    # concat along columns -> 1,n_side,n_dim,n_dim*n_side
+    p_mu = np.concatenate(np.split(p_mu, n_side, axis=0), axis=3)
+    # split into n_side (1,1,n_dim,n_dim*n_side) images,
+    # concat along rows -> 1,1,n_dim*n_side,n_dim*n_side
+    p_mu = np.concatenate(np.split(p_mu, n_side, axis=1), axis=2)
+    return np.squeeze(p_mu)

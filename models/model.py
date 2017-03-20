@@ -130,6 +130,8 @@ class Model(object):
     n_data = len(X_train)
     n_superbatch = self.n_superbatch
 
+    if hasattr(self, 'gen_samples'): import scipy.misc
+
     for epoch in range(n_epoch):
       # In each epoch, we do a full pass over the training data:
       train_batches, train_err, train_acc = 0, 0, 0
@@ -158,6 +160,10 @@ class Model(object):
 
       print "  training loss/acc:\t\t{:.6f}\t{:.6f}".format(train_err, train_acc)
       print "  validation loss/acc:\t\t{:.6f}\t{:.6f}".format(val_err, val_acc)
+
+      if hasattr(self, 'gen_samples'):
+        X_sam = self.gen_samples(100)
+        scipy.misc.imsave('test.png', X_sam)
 
       metrics = [ epoch, train_err, train_acc, val_err, val_acc ]
       log_metrics(logname + '.val', metrics)
