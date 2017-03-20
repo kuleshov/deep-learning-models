@@ -22,10 +22,8 @@ class CNN(Model):
   def create_model(self, X, Y, n_dim, n_out, n_chan=1):
     if self.model == 'mnist':
       return self.create_mnist_model(X, Y, n_dim, n_out, n_chan)
-    elif self.model == 'cifar10':
-      return self.create_cifar10_model(X, Y, n_dim, n_out, n_chan)
     else:
-      raise ValueError('Invalid CNN model type')
+      return self.create_cifar10_model(X, Y, n_dim, n_out, n_chan)
 
   def create_mnist_model(self, X, Y, n_dim, n_out, n_chan=1):
     l_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
