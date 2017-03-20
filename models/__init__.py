@@ -28,3 +28,5 @@ try:
   import keras.backend as K
   if K.backend() == 'theano':
     from kcnn import KCNN
+except:
+  pass
