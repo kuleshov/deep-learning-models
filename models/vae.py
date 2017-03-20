@@ -24,6 +24,7 @@ class VAE(Model):
     self.n_batch = n_batch
     self.n_lat = 100
     self.n_dim = n_dim
+    self.n_chan = n_chan
 
     # invoke parent constructor
     Model.__init__(self, n_dim, n_chan, n_out, n_superbatch, opt_alg, opt_params)
@@ -207,7 +208,7 @@ class VAE(Model):
     return p_params + q_params
 
   def gen_samples(self, n_sam):
-    n_lat, n_dim = self.n_lat, self.n_dim
+    n_lat, n_dim, n_chan = self.n_lat, self.n_dim, self.n_chan
     noise = np.random.randn(n_sam, n_lat).astype(theano.config.floatX)
     # noise = np.zeros((n_sam, n_lat))
     # noise[range(n_sam), np.random.choice(n_lat, n_sam)] = 1
@@ -216,8 +217,9 @@ class VAE(Model):
     n_side = int(np.sqrt(n_sam))
 
     p_mu = self.sample(noise)
-    p_mu = p_mu.reshape((n_side, n_side, n_dim, n_dim))
-    # split into n_side (1,n_side,n_dim,n_dim) images,
+    p_mu = p_mu.reshape((n_side, n_side, n_chan, n_dim, n_dim))
+    p_mu = p_mu[:,:,0,:,:] # keep the first channel
+    # split into n_side (1,n_side,n_dim,n_dim,) images,
     # concat along columns -> 1,n_side,n_dim,n_dim*n_side
     p_mu = np.concatenate(np.split(p_mu, n_side, axis=0), axis=3)
     # split into n_side (1,1,n_dim,n_dim*n_side) images,
