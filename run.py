@@ -69,6 +69,9 @@ def train(args):
   elif args.dataset == 'mnist':
     n_dim, n_out, n_channels = 28, 10, 1
     X_train, y_train, X_val, y_val, _, _ = data.load_mnist()
+  elif args.dataset == 'svhn':
+    n_dim, n_out, n_channels = 32, 10, 3
+    X_train, y_train, X_val, y_val = data.load_svhn()
   elif args.dataset == 'cifar10':
     n_dim, n_out, n_channels = 32, 10, 3
     X_train, y_train, X_val, y_val = data.load_cifar10()

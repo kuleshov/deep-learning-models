@@ -120,6 +120,35 @@ def load_mnist():
   # (It doesn't matter how we do this as long as we can read them again.)
   return X_train, y_train, X_val, y_val, X_test, y_test
 
+def load_svhn():
+  if sys.version_info[0] == 2:
+    from urllib import urlretrieve
+  else:
+    from urllib.request import urlretrieve
+
+  def download(filename, source="https://github.com/smlaine2/tempens/raw/master/data/svhn/"):
+    print "Downloading %s" % filename
+    urlretrieve(source + filename, filename)
+
+  import cPickle
+  def load_svhn_files(filenames):
+    if isinstance(filenames, str):
+        filenames = [filenames]
+    images = []
+    labels = []
+    for fn in filenames:
+        if not os.path.isfile(fn): download(fn)
+        with open(fn, 'rb') as f:
+          X, y = cPickle.load(f)
+        images.append(np.asarray(X, dtype='float32') / np.float32(255))
+        labels.append(np.asarray(y, dtype='uint8'))
+    return np.concatenate(images), np.concatenate(labels)
+
+  X_train, y_train = load_svhn_files(['train_%d.pkl' % i for i in (1, 2, 3)])
+  X_test, y_test = load_svhn_files('test.pkl')
+
+  return X_train, y_train, X_test, y_test
+
 # ----------------------------------------------------------------------------
 # other
 
