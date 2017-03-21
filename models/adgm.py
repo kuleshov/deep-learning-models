@@ -17,13 +17,27 @@ from distributions import log_bernoulli, log_normal, log_normal2
 
 class ADGM(Model):
   """Auxiliary Deep Generative Model (unsupervised version)"""
-  def __init__(self, n_dim, n_out, n_chan=1, n_superbatch=12800, model='bernoulli',
+  def __init__(self, n_dim, n_out, n_chan=1, n_batch=128, n_superbatch=12800, model='bernoulli',
                 opt_alg='adam', opt_params={'lr' : 1e-3, 'b1': 0.9, 'b2': 0.99}):
     # save model that wil be created
     self.model = model
     self.n_sample = 1 # adjustable parameter, though 1 works best in practice
 
+    self.n_batch = n_batch
+    self.n_lat = 200
+    self.n_dim = n_dim
+    self.n_chan = n_chan
+    self.n_batch = n_batch
+
     Model.__init__(self, n_dim, n_chan, n_out, n_superbatch, opt_alg, opt_params)
+
+    # sample generation
+    Z = T.matrix(dtype=theano.config.floatX) # noise matrix
+    l_px_mu, l_px_logsigma, l_pa_mu, l_pa_logsigma, \
+        l_qz_mu, l_qz_logsigma, l_qa_mu, l_qa_logsigma, \
+        l_qa, l_qz  = self.network
+    sample = lasagne.layers.get_output(l_px_mu,  {l_qz : Z}, deterministic=True)
+    self.sample = theano.function([Z], sample, on_unused_input='warn')
   
   def create_model(self, X, Y, n_dim, n_out, n_chan=1):
     # params
@@ -237,3 +251,25 @@ class ADGM(Model):
       if param not in params: params.append(param)
     
     return params
+
+  def gen_samples(self, n_sam):
+    n_lat, n_dim, n_chan, n_batch = self.n_lat, self.n_dim, self.n_chan, self.n_batch
+    noise = np.random.randn(n_batch, n_lat).astype(theano.config.floatX)
+    # noise = np.zeros((n_sam, n_lat))
+    # noise[range(n_sam), np.random.choice(n_lat, n_sam)] = 1
+
+    assert np.sqrt(n_sam) == int(np.sqrt(n_sam))
+    n_side = int(np.sqrt(n_sam))
+
+    p_mu = self.sample(noise)
+    p_mu = p_mu[:n_sam]
+    p_mu = p_mu.reshape((n_side, n_side, n_chan, n_dim, n_dim))
+    p_mu = p_mu[:,:,0,:,:] # keep the first channel
+
+    # split into n_side (1,n_side,n_dim,n_dim,) images,
+    # concat along columns -> 1,n_side,n_dim,n_dim*n_side
+    p_mu = np.concatenate(np.split(p_mu, n_side, axis=0), axis=3)
+    # split into n_side (1,1,n_dim,n_dim*n_side) images,
+    # concat along rows -> 1,1,n_dim*n_side,n_dim*n_side
+    p_mu = np.concatenate(np.split(p_mu, n_side, axis=1), axis=2)
+    return np.squeeze(p_mu)
