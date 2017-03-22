@@ -228,7 +228,7 @@ def nudge_dataset(X, Y):
     Y = np.concatenate([Y for _ in range(5)], axis=0)
     return X, Y
 
-def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation):
+def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation=0):
   # Whiten input data
   def whiten_norm(x):
     x = x - np.mean(x, axis=(1, 2, 3), keepdims=True)
@@ -250,10 +250,9 @@ def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation):
       X_test = np.pad(X_test, ((0, 0), (0, 0), (p, p), (p, p)), 'reflect')
 
   # Random shuffle.
-
-  indices = np.arange(len(X_train))
-  np.random.shuffle(indices)
-  X_train = X_train[indices]
-  y_train = y_train[indices]
+  # indices = np.arange(len(X_train))
+  # np.random.shuffle(indices)
+  # X_train = X_train[indices]
+  # y_train = y_train[indices]
 
   return X_train, y_train, X_test, y_test
