@@ -227,3 +227,33 @@ def nudge_dataset(X, Y):
                         for vector in direction_vectors])
     Y = np.concatenate([Y for _ in range(5)], axis=0)
     return X, Y
+
+def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation):
+  # Whiten input data
+  def whiten_norm(x):
+    x = x - np.mean(x, axis=(1, 2, 3), keepdims=True)
+    x = x / (np.mean(x ** 2, axis=(1, 2, 3), keepdims=True) ** 0.5)
+    return x
+
+  X_train = whiten_norm(X_train)
+  X_test = whiten_norm(X_test)
+  
+  # whitener = ZCA(x=X_train)
+  # X_train = whitener.apply(X_train)
+  # X_test = whitener.apply(X_test)
+
+  # Pad according to the amount of jitter we plan to have.
+
+  p = aug_translation
+  if p > 0:
+      X_train = np.pad(X_train, ((0, 0), (0, 0), (p, p), (p, p)), 'reflect')
+      X_test = np.pad(X_test, ((0, 0), (0, 0), (p, p), (p, p)), 'reflect')
+
+  # Random shuffle.
+
+  indices = np.arange(len(X_train))
+  np.random.shuffle(indices)
+  X_train = X_train[indices]
+  y_train = y_train[indices]
+
+  return X_train, y_train, X_test, y_test
