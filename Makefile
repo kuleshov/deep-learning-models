@@ -1,18 +1,21 @@
+
 PYTHON=/usr/bin/python27
 PYTHON=python
 
 EPOCHS=200
 NAME=experiment
 
+# DATASET=mnist
+# MODEL=ssadgm
 DATASET=mnist
-MODEL=ssadgm
+MODEL=hdgm
 ALG=adam
 
 LR=3e-4
 B1=0.9
 B2=0.999
 SUPERBATCH=1024
-NB=128
+NB=256
 NLBL=1024
 
 # ----------------------------------------------------------------------------

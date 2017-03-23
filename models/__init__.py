@@ -4,6 +4,7 @@ from cnn import CNN
 from vae import VAE
 from sbn import SBN
 from adgm import ADGM
+from hdgm import HDGM
 from dadgm import DADGM
 
 # load some models that require the latest version of Lasagne
