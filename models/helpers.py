@@ -19,6 +19,25 @@ def iterate_minibatches(inputs, targets, batchsize, shuffle=False):
         excerpt = slice(start_idx, start_idx + batchsize)
     yield inputs[excerpt], targets[excerpt]
 
+def iterate_minibatches_augment(inputs, labels, batch_size):
+  assert len(inputs) == len(labels)
+  crop = 2
+  num = len(inputs)
+  indices = np.arange(num)
+  np.random.shuffle(indices)
+
+  for start_idx in range(0, num, batch_size):
+      if start_idx + batch_size <= num:
+          excerpt = indices[start_idx : start_idx + batch_size]
+          noisy = []
+          for img in inputs[excerpt]:
+              t = crop
+              ofs0 = np.random.randint(-t, t + 1) + crop
+              ofs1 = np.random.randint(-t, t + 1) + crop
+              img = img[:, ofs0:ofs0+32, ofs1:ofs1+32]
+              noisy.append(img)
+          yield np.array(noisy, dtype='float32'), labels[excerpt]
+
 def random_subbatch(inputs, targets, batchsize):
   assert len(inputs) == len(targets)
   indices = np.arange(len(inputs))
