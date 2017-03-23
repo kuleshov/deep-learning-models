@@ -34,7 +34,7 @@ class Model(object):
 
     # create objectives
     loss, acc            = self.create_objectives(deterministic=False)
-    loss_test, acc_test  = self.create_objectives(deterministic=True)
+    loss_test, acc_test  = self.create_objectives(deterministic=False)
     self.objectives      = (loss, acc)
     self.objectives_test = (loss_test, acc_test)
 
@@ -132,6 +132,9 @@ class Model(object):
 
     if hasattr(self, 'gen_samples'): import scipy.misc
 
+    # test_one_true_sample = np.array(X_train[0]).flatten()
+    # scipy.misc.imsave('test_one_true_sample.png', test_one_true_sample.reshape((3,32,32))[0])
+
     for epoch in range(n_epoch):
       # In each epoch, we do a full pass over the training data:
       train_batches, train_err, train_acc = 0, 0, 0
@@ -155,18 +158,19 @@ class Model(object):
           epoch + 1, n_epoch, time.time() - start_time, train_batches)
 
       # make a full pass over the training data and record metrics:
-      train_err, train_acc = evaluate(self.loss, X_train, Y_train, batchsize=1000)
-      val_err, val_acc = evaluate(self.loss, X_val, Y_val, batchsize=1000)
+      train_err, train_acc = evaluate(self.loss, X_train, Y_train, batchsize=n_batch)
+      val_err, val_acc = evaluate(self.loss, X_val, Y_val, batchsize=n_batch)
 
       print "  training loss/acc:\t\t{:.6f}\t{:.6f}".format(train_err, train_acc)
       print "  validation loss/acc:\t\t{:.6f}\t{:.6f}".format(val_err, val_acc)
 
       if hasattr(self, 'gen_samples'):
         X_sam = self.gen_samples(100)
-        scipy.misc.imsave('test.png', X_sam)
+        scipy.misc.imsave(logname + '.png', X_sam)
 
       metrics = [ epoch, train_err, train_acc, val_err, val_acc ]
       log_metrics(logname + '.val', metrics)
+      self.dump(logname  + '.pkl')
 
   def dump(self, fname):
     """Pickle weights to a file"""
