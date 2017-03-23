@@ -20,7 +20,7 @@ class GaussianSampleLayer(lasagne.layers.MergeLayer):
                 self.input_shapes[0][1] or inputs[0].shape[1])
         if deterministic:
             return mu
-        return mu + T.exp(logsigma) * self.rng.normal(shape)
+        return mu + T.exp(T.minimum(logsigma,100.)) * self.rng.normal(shape)
 
 class GaussianMultiSampleLayer(lasagne.layers.MergeLayer):
     def __init__(self, mu, logsigma, n_samples, rng=None, **kwargs):
