@@ -51,8 +51,8 @@ def log_normal(x, mean, std, eps=1e-5):
     log_normal1 : using variance parameterization
     log_normal2 : using log variance parameterization
     """
-    std += eps
-    return c - T.log(T.abs_(std)) - (x - mean)**2 / (2 * std**2)    
+    abs_std = T.abs_(std) + eps
+    return c - T.log(abs_std) - (x - mean)**2 / (2 * abs_std**2)
 
 def log_normal2(x, mean, log_var, eps=1e-5):
     """
