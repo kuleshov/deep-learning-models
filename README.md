@@ -1,4 +1,4 @@
-Deep learning model zoo
+Deep Learning Model Zoo
 =======================
 
 This repository contains implementations of various deep learning algorithms in Theano/Lasagne.
