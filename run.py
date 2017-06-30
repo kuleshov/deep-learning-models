@@ -73,18 +73,17 @@ def train(args):
     n_dim, n_out, n_channels = 32, 10, 3
     X_train, y_train, X_val, y_val = data.load_svhn()
     X_train, y_train, X_val, y_val = data.prepare_dataset(X_train, y_train, X_val, y_val)
-    print X_train.shape
   elif args.dataset == 'cifar10':
     n_dim, n_out, n_channels = 32, 10, 3
     X_train, y_train, X_val, y_val = data.load_cifar10()
-    X_train, X_val = data.whiten(X_train, X_val)
+    X_train, y_train, X_val, y_val = data.prepare_dataset(X_train, y_train, X_val, y_val)
   elif args.dataset == 'random':
     n_dim, n_out, n_channels = 2, 2, 1
     X_train, y_train = data.load_noise(n=1000, d=n_dim)
     X_val, y_val = X_train, y_train
   else:
     raise ValueError('Invalid dataset name: %s' % args.dataset)
-  print 'dataset loaded.'
+  print 'dataset loaded, dim:', X_train.shape
 
   # set up optimization params
   p = { 'lr' : args.lr, 'b1': args.b1, 'b2': args.b2 }
@@ -108,13 +107,16 @@ def train(args):
   elif args.model == 'vae':
     model = models.VAE(n_dim=n_dim, n_out=n_out, n_chan=n_channels, n_batch=args.n_batch,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p,
-                          model='svhn' if args.dataset == 'svhn' else 'bernoulli')    
+                          model='bernoulli' if args.dataset in ('digits', 'mnist') 
+                                            else 'gaussian')    
   elif args.model == 'sbn':
     model = models.SBN(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)      
   elif args.model == 'adgm':
     model = models.ADGM(n_dim=n_dim, n_out=n_out, n_chan=n_channels, n_batch=args.n_batch,
-                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)        
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p,
+                          model='bernoulli' if args.dataset in ('digits', 'mnist') 
+                                            else 'gaussian')
   elif args.model == 'hdgm':
     model = models.HDGM(n_dim=n_dim, n_out=n_out, n_chan=n_channels, n_batch=args.n_batch,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)        
