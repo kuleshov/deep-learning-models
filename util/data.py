@@ -3,6 +3,7 @@ import os
 import pickle
 import tarfile
 
+import theano
 import numpy as np
 from scipy.ndimage import convolve
 try:
@@ -228,19 +229,30 @@ def nudge_dataset(X, Y):
     Y = np.concatenate([Y for _ in range(5)], axis=0)
     return X, Y
 
-def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation=0):
+def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation=0, zca=False):
   # Whiten input data
   def whiten_norm(x):
     x = x - np.mean(x, axis=(1, 2, 3), keepdims=True)
     x = x / (np.mean(x ** 2, axis=(1, 2, 3), keepdims=True) ** 0.5)
     return x
 
-  X_train = whiten_norm(X_train)
-  X_test = whiten_norm(X_test)
-  
-  # whitener = ZCA(x=X_train)
-  # X_train = whitener.apply(X_train)
-  # X_test = whitener.apply(X_test)
+  if zca:
+    # apply whitening
+    whitener = ZCA(x=X_train)
+    X_train = whitener.apply(X_train)
+    X_test = whitener.apply(X_test)
+
+    # normalize data with range
+    X_train = whiten_norm(X_train)
+    X_test = whiten_norm(X_test)
+
+    # remove outliers
+    X_train = np.clip(X_train, -3, 3)
+    X_test = np.clip(X_test, -3, 3)  
+  else:
+    X_train = whiten_norm(X_train)
+    X_test = whiten_norm(X_test)
+
 
   # Pad according to the amount of jitter we plan to have.
 
@@ -256,3 +268,40 @@ def prepare_dataset(X_train, y_train, X_test, y_test, aug_translation=0):
   # y_train = y_train[indices]
 
   return X_train, y_train, X_test, y_test
+
+class ZCA(object):
+    def __init__(self, regularization=1e-5, x=None):
+        self.regularization = regularization
+        if x is not None:
+            self.fit(x)
+
+    def fit(self, x):
+        s = x.shape
+        x = x.copy().reshape((s[0],np.prod(s[1:])))
+        m = np.mean(x, axis=0)
+        x -= m
+        sigma = np.dot(x.T,x) / x.shape[0]
+        U, S, V = np.linalg.svd(sigma)
+        tmp = np.dot(U, np.diag(1./np.sqrt(S+self.regularization)))
+        tmp2 = np.dot(U, np.diag(np.sqrt(S+self.regularization)))
+        self.ZCA_mat = theano.shared(np.dot(tmp, U.T).astype(theano.config.floatX))
+        self.inv_ZCA_mat = theano.shared(np.dot(tmp2, U.T).astype(theano.config.floatX))
+        self.mean = theano.shared(m.astype(theano.config.floatX))
+
+    def apply(self, x):
+        s = x.shape
+        if isinstance(x, np.ndarray):
+            return np.dot(x.reshape((s[0],np.prod(s[1:]))) - self.mean.get_value(), self.ZCA_mat.get_value()).reshape(s)
+        elif isinstance(x, T.TensorVariable):
+            return T.dot(x.flatten(2) - self.mean.dimshuffle('x',0), self.ZCA_mat).reshape(s)
+        else:
+            raise NotImplementedError("Whitening only implemented for numpy arrays or Theano TensorVariables")
+            
+    def invert(self, x):
+        s = x.shape
+        if isinstance(x, np.ndarray):
+            return (np.dot(x.reshape((s[0],np.prod(s[1:]))), self.inv_ZCA_mat.get_value()) + self.mean.get_value()).reshape(s)
+        elif isinstance(x, T.TensorVariable):
+            return (T.dot(x.flatten(2), self.inv_ZCA_mat) + self.mean.dimshuffle('x',0)).reshape(s)
+        else:
+            raise NotImplementedError("Whitening only implemented for numpy arrays or Theano TensorVariables")
