@@ -58,7 +58,7 @@ class ADGM(Model):
     # create q(a|x)
     l_qa_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
                                      input_var=X)
-    l_qa_hid1 = (lasagne.layers.DenseLayer(
+    l_qa_hid1 = batch_norm(lasagne.layers.DenseLayer(
         l_qa_in, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
@@ -87,12 +87,12 @@ class ADGM(Model):
     l_qa = GaussianSampleLayer(l_qa_mu, l_qa_logsigma)
 
     # create q(z|a,x)
-    l_qz_hid1a = (lasagne.layers.DenseLayer(
+    l_qz_hid1a = batch_norm(lasagne.layers.DenseLayer(
         l_qa, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
         nonlinearity=hid_nl))
-    l_qz_hid1b = (lasagne.layers.DenseLayer(
+    l_qz_hid1b = batch_norm(lasagne.layers.DenseLayer(
         l_qa_in, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
@@ -122,7 +122,7 @@ class ADGM(Model):
     # create the decoder network
 
     # create p(x|z)
-    l_px_hid1 = (lasagne.layers.DenseLayer(
+    l_px_hid1 = batch_norm(lasagne.layers.DenseLayer(
         l_qz, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
@@ -176,7 +176,7 @@ class ADGM(Model):
     #     nonlinearity=relu_shift)
 
     # create p(a|z)
-    l_pa_hid1 = (lasagne.layers.DenseLayer(
+    l_pa_hid1 = batch_norm(lasagne.layers.DenseLayer(
       l_qz, num_units=n_hid,
       nonlinearity=hid_nl,
       W=lasagne.init.Orthogonal(),
@@ -222,15 +222,6 @@ class ADGM(Model):
           [ l_pa_mu, l_pa_logsigma, l_qz_mu, l_qz_logsigma, 
             l_qa_mu, l_qa_logsigma, l_qa, l_qz ], 
           deterministic=deterministic)
-
-    # pa_mu = lasagne.layers.get_output(l_pa_mu, deterministic=deterministic)
-    # pa_logsigma = lasagne.layers.get_output(l_pa_logsigma, deterministic=deterministic)
-    # qz_mu = lasagne.layers.get_output(l_qz_mu, deterministic=deterministic)
-    # qz_logsigma = lasagne.layers.get_output(l_qz_logsigma, deterministic=deterministic)
-    # qa_mu = lasagne.layers.get_output(l_qa_mu, deterministic=deterministic)
-    # qa_logsigma = lasagne.layers.get_output(l_qa_logsigma, deterministic=deterministic)
-    # a = lasagne.layers.get_output(l_qa, deterministic=deterministic)
-    # z = lasagne.layers.get_output(l_qz, deterministic=deterministic)
 
     if self.model == 'bernoulli':
       px_mu = lasagne.layers.get_output(l_px_mu, deterministic=deterministic)
