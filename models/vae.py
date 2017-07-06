@@ -36,71 +36,7 @@ class VAE(Model):
     self.sample = theano.function([Z], sample, on_unused_input='warn')
 
   def create_model(self, X, Y, n_dim, n_out, n_chan=1):
-    if self.model == 'svhn':
-      return self.create_svhn_model(X, Y, n_dim, n_out, n_chan)
-    else:
       return self.create_std_model(X, Y, n_dim, n_out, n_chan)
-  
-  def create_svhn_model(self, X, Y, n_dim, n_out, n_chan=1):
-    # params
-    n_lat = 100 # latent stochastic variabels
-    n_out = n_dim * n_dim * n_chan # total dimensionality of output
-    hid_nl = lasagne.nonlinearities.rectified
-
-    # create the encoder network
-    l_q_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
-                                     input_var=X)
-
-    l_q_conv1 = lasagne.layers.Conv2DLayer(
-        l_q_in, num_filters=128, filter_size=(5, 5), stride=2,
-        nonlinearity=lasagne.nonlinearities.leaky_rectify(0.2),
-        pad='same', W=lasagne.init.Normal(5e-2))
-
-    l_q_conv2 = nn.batch_norm(lasagne.layers.Conv2DLayer(
-        l_q_conv1, num_filters=256, filter_size=(5, 5), stride=2,
-        nonlinearity=lasagne.nonlinearities.leaky_rectify(0.2),
-        pad='same', W=lasagne.init.Normal(5e-2)), g=None)
-
-    l_q_conv3 = nn.batch_norm(lasagne.layers.Conv2DLayer(
-        l_q_conv2, num_filters=512, filter_size=(5, 5), stride=2,
-        nonlinearity=lasagne.nonlinearities.leaky_rectify(0.2),
-        pad='same', W=lasagne.init.Normal(5e-2)), g=None)
-
-    l_q_mu = lasagne.layers.DenseLayer(
-        l_q_conv3, num_units=n_lat, nonlinearity=None,
-        W=lasagne.init.Normal(5e-2))
-
-    l_q_logsigma = lasagne.layers.DenseLayer(
-        l_q_conv3, num_units=n_lat, nonlinearity=None,
-        W=lasagne.init.Normal(5e-2))
-
-    # create the decoder network
-    l_p_z = GaussianSampleLayer(l_q_mu, l_q_logsigma)
-
-    l_p_hid1 = nn.batch_norm(lasagne.layers.DenseLayer(
-        l_p_z, num_units=4*4*512, nonlinearity=hid_nl, 
-        W=lasagne.init.Normal(5e-2)), g=None)
-    l_p_hid1 = lasagne.layers.ReshapeLayer(l_p_hid1, (-1, 512, 4, 4))
-    
-    l_p_hid2 = nn.batch_norm(nn.Deconv2DLayer(l_p_hid1, 
-      (self.n_batch,256,8,8), (5,5), W=lasagne.init.Normal(0.05), 
-      nonlinearity=hid_nl), g=None)
-
-    l_p_hid3 = nn.batch_norm(nn.Deconv2DLayer(l_p_hid2, 
-      (self.n_batch,128,16,16), (5,5), W=lasagne.init.Normal(0.05), 
-      nonlinearity=hid_nl), g=None)
-
-    l_p_mu = nn.weight_norm(nn.Deconv2DLayer(l_p_hid3, 
-      (self.n_batch,3,32,32), (5,5), W=lasagne.init.Normal(0.05), 
-      nonlinearity=lasagne.nonlinearities.sigmoid), train_g=True, init_stdv=0.1)
-
-    l_p_logsigma = nn.weight_norm(nn.Deconv2DLayer(l_p_hid3, 
-      (self.n_batch,3,32,32), (5,5), W=lasagne.init.Normal(0.05), 
-      nonlinearity=None), train_g=True, init_stdv=0.1)
-
-    l_sample = GaussianSampleLayer(l_p_mu, l_p_logsigma)
-
-    return l_p_mu, l_p_logsigma, l_q_mu, l_q_logsigma, l_sample, l_p_z
 
   def create_std_model(self, X, Y, n_dim, n_out, n_chan=1):
     # params
