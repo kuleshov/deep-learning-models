@@ -79,5 +79,4 @@ def log_normal2(x, mean, log_var, eps=1e-5):
     log_normal : using standard deviation parameterization
     log_normal1 : using variance parameterization
     """
-    lv_clip = T.clip(log_var, -10., 10.)
-    return c - log_var/2 - (x - mean)**2 / (2 * T.exp(lv_clip) + eps)    
+    return c - log_var/2 - (x - mean)**2 / (2 * T.exp(log_var) + eps)    

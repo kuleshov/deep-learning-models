@@ -49,7 +49,9 @@ class ADGM(Model):
     n_sam = self.n_sample # number of monte-carlo samples
     n_out = n_dim * n_dim * n_chan # total dimensionality of ouput
     hid_nl = lasagne.nonlinearities.rectify
-    relu_shift = lambda av: T.nnet.relu(av+10)-10 # for numerical stability
+    # relu_shift = lambda av: T.nnet.relu(av+10)-10 # for numerical stability
+    # relu_shift = lambda av: 5*T.tanh(av) # for numerical stability
+    relu_shift = lambda av: T.clip(av, -5, 5)  # for numerical stability    
 
     # create the encoder network
 
@@ -221,6 +223,15 @@ class ADGM(Model):
             l_qa_mu, l_qa_logsigma, l_qa, l_qz ], 
           deterministic=deterministic)
 
+    # pa_mu = lasagne.layers.get_output(l_pa_mu, deterministic=deterministic)
+    # pa_logsigma = lasagne.layers.get_output(l_pa_logsigma, deterministic=deterministic)
+    # qz_mu = lasagne.layers.get_output(l_qz_mu, deterministic=deterministic)
+    # qz_logsigma = lasagne.layers.get_output(l_qz_logsigma, deterministic=deterministic)
+    # qa_mu = lasagne.layers.get_output(l_qa_mu, deterministic=deterministic)
+    # qa_logsigma = lasagne.layers.get_output(l_qa_logsigma, deterministic=deterministic)
+    # a = lasagne.layers.get_output(l_qa, deterministic=deterministic)
+    # z = lasagne.layers.get_output(l_qz, deterministic=deterministic)
+
     if self.model == 'bernoulli':
       px_mu = lasagne.layers.get_output(l_px_mu, deterministic=deterministic)
     elif self.model == 'gaussian':
@@ -255,7 +266,7 @@ class ADGM(Model):
     elbo = T.mean(log_paxz - log_qza_given_x)
 
     # we don't use a spearate accuracy metric right now
-    return -elbo, T.mean(qz_logsigma)
+    return -elbo, T.max(qz_logsigma)
 
   def create_gradients(self, loss, deterministic=False):
     grads = Model.create_gradients(self, loss, deterministic)

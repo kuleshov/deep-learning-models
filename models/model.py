@@ -50,7 +50,7 @@ class Model(object):
     updates = self.create_updates(grads, params, alpha, opt_alg, opt_params)
 
     # create methods for training / prediction
-    # from theano.compile.nanguardmode import NanGuardMode
+    from theano.compile.nanguardmode import NanGuardMode
     self.train = theano.function([idx1, idx2, alpha], [loss, acc], updates=updates,
                                  givens={X : train_set_x[idx1:idx2], Y : train_set_y_int[idx1:idx2]},
                                  on_unused_input='warn')
@@ -144,6 +144,7 @@ class Model(object):
       for X_sb, Y_sb in self.iterate_superbatches(X_train, Y_train, n_superbatch, datatype='train', shuffle=True):
         for idx1, idx2 in iterate_minibatch_idx(len(X_sb), n_batch):
           err, acc = self.train(idx1, idx2, alpha)
+          print err, acc
 
           # collect metrics
           train_batches += 1
