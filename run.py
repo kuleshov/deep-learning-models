@@ -109,6 +109,11 @@ def train(args):
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p,
                           model='bernoulli' if args.dataset in ('digits', 'mnist') 
                                             else 'gaussian')    
+  elif args.model == 'convvae':
+    model = models.ConvVAE(n_dim=n_dim, n_out=n_out, n_chan=n_channels, n_batch=args.n_batch,
+                          n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p,
+                          model='bernoulli' if args.dataset in ('digits', 'mnist') 
+                                            else 'gaussian')    
   elif args.model == 'sbn':
     model = models.SBN(n_dim=n_dim, n_out=n_out, n_chan=n_channels,
                           n_superbatch=args.n_superbatch, opt_alg=args.alg, opt_params=p)      
