@@ -9,6 +9,7 @@ import lasagne
 from model import Model
 
 from lasagne.layers import batch_norm
+from layers.normalization import weight_norm
 from layers.sampling import GaussianSampleLayer
 from layers.shape import RepeatLayer
 from layers import extras as nn
@@ -58,7 +59,7 @@ class ADGM(Model):
     # create q(a|x)
     l_qa_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
                                      input_var=X)
-    l_qa_hid1 = batch_norm(lasagne.layers.DenseLayer(
+    l_qa_hid1 = weight_norm(lasagne.layers.DenseLayer(
         l_qa_in, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
@@ -68,16 +69,16 @@ class ADGM(Model):
     #     W=lasagne.init.Orthogonal(),
     #     b=lasagne.init.Constant(0.0),
     #     nonlinearity=hid_nl))
-    l_qa_mu = lasagne.layers.DenseLayer(
+    l_qa_mu = weight_norm(lasagne.layers.DenseLayer(
         l_qa_hid1, num_units=n_aux,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
-        nonlinearity=None)
-    l_qa_logsigma = lasagne.layers.DenseLayer(
+        nonlinearity=None))
+    l_qa_logsigma = weight_norm(lasagne.layers.DenseLayer(
         l_qa_hid1, num_units=n_aux,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
-        nonlinearity=relu_shift)
+        nonlinearity=relu_shift))
     l_qa_mu = lasagne.layers.ReshapeLayer(
         RepeatLayer(l_qa_mu, n_ax=1, n_rep=n_sam),
         shape=(-1, n_aux))
@@ -87,12 +88,12 @@ class ADGM(Model):
     l_qa = GaussianSampleLayer(l_qa_mu, l_qa_logsigma)
 
     # create q(z|a,x)
-    l_qz_hid1a = batch_norm(lasagne.layers.DenseLayer(
+    l_qz_hid1a = weight_norm(lasagne.layers.DenseLayer(
         l_qa, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
         nonlinearity=hid_nl))
-    l_qz_hid1b = batch_norm(lasagne.layers.DenseLayer(
+    l_qz_hid1b = weight_norm(lasagne.layers.DenseLayer(
         l_qa_in, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
@@ -107,22 +108,22 @@ class ADGM(Model):
     #     W=lasagne.init.Orthogonal(),
     #     b=lasagne.init.Constant(0.0),
     #     nonlinearity=hid_nl))
-    l_qz_mu = lasagne.layers.DenseLayer(
+    l_qz_mu = weight_norm(lasagne.layers.DenseLayer(
         l_qz_hid2, num_units=n_lat,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
-        nonlinearity=None)
-    l_qz_logsigma = lasagne.layers.DenseLayer(
+        nonlinearity=None))
+    l_qz_logsigma = weight_norm(lasagne.layers.DenseLayer(
         l_qz_hid2, num_units=n_lat,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
-        nonlinearity=relu_shift)
+        nonlinearity=relu_shift))
     l_qz = GaussianSampleLayer(l_qz_mu, l_qz_logsigma, name='l_qz')
 
     # create the decoder network
 
     # create p(x|z)
-    l_px_hid1 = batch_norm(lasagne.layers.DenseLayer(
+    l_px_hid1 = weight_norm(lasagne.layers.DenseLayer(
         l_qz, num_units=n_hid,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
@@ -140,16 +141,16 @@ class ADGM(Model):
           W=lasagne.init.GlorotUniform(),
           b=lasagne.init.Constant(0.0))
     elif self.model == 'gaussian':
-      l_px_mu = lasagne.layers.DenseLayer(
+      l_px_mu = weight_norm(lasagne.layers.DenseLayer(
           l_px_hid1, num_units=n_out,
           W=lasagne.init.Orthogonal(),
           b=lasagne.init.Constant(0.0),
-          nonlinearity=None)
-      l_px_logsigma = lasagne.layers.DenseLayer(
+          nonlinearity=None))
+      l_px_logsigma = weight_norm(lasagne.layers.DenseLayer(
           l_px_hid1, num_units=n_out,
           W=lasagne.init.Orthogonal(),
           b=lasagne.init.Constant(0.0),
-          nonlinearity=relu_shift)
+          nonlinearity=relu_shift))
 
     # create p(a|x,z)
     # l_pa_hid1a = lasagne.layers.DenseLayer(
@@ -176,26 +177,26 @@ class ADGM(Model):
     #     nonlinearity=relu_shift)
 
     # create p(a|z)
-    l_pa_hid1 = batch_norm(lasagne.layers.DenseLayer(
+    l_pa_hid1 = weight_norm(lasagne.layers.DenseLayer(
       l_qz, num_units=n_hid,
       nonlinearity=hid_nl,
       W=lasagne.init.Orthogonal(),
       b=lasagne.init.Constant(0.0)))
-    # l_pa_hid2 = batch_norm(lasagne.layers.DenseLayer(
+    # l_pa_hid2 = weight_norm(lasagne.layers.DenseLayer(
     #   l_pa_hid1, num_units=n_hid,
     #   nonlinearity=hid_nl,
     #   W=lasagne.init.Orthogonal(),
     #   b=lasagne.init.Constant(0.0)))
-    l_pa_mu = lasagne.layers.DenseLayer(
+    l_pa_mu = weight_norm(lasagne.layers.DenseLayer(
         l_pa_hid1, num_units=n_aux,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
-        nonlinearity=None)
-    l_pa_logsigma = lasagne.layers.DenseLayer(
+        nonlinearity=None))
+    l_pa_logsigma = weight_norm(lasagne.layers.DenseLayer(
         l_pa_hid1, num_units=n_aux,
         W=lasagne.init.Orthogonal(),
         b=lasagne.init.Constant(0.0),
-        nonlinearity=relu_shift)
+        nonlinearity=relu_shift))
 
     return l_px_mu, l_px_logsigma, l_pa_mu, l_pa_logsigma, \
            l_qz_mu, l_qz_logsigma, l_qa_mu, l_qa_logsigma, \
