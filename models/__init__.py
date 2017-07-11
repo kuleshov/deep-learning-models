@@ -7,6 +7,7 @@ from adgm import ADGM
 from hdgm import HDGM
 from dadgm import DADGM
 from convvae import ConvVAE
+from convadgm import ConvADGM
 
 # load some models that require the latest version of Lasagne
 try:
