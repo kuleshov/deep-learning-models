@@ -84,20 +84,24 @@ class ConvVAE(Model):
         W=lasagne.init.Normal(5e-2)))
     l_p_hid1 = lasagne.layers.ReshapeLayer(l_p_hid1, (-1, 512, 4, 4))
     
-    l_p_hid2 = batch_norm(lasagne.layers.Deconv2DLayer(l_p_hid1, 
-      num_filters=256, filter_size=(5,5), stride=2, crop='same',
-      nonlinearity=hid_nl, output_size=(8,8)))
+    l_p_hid2 = lasagne.layers.Upscale2DLayer(l_p_hid1, 2)
+    l_p_hid2 = weight_norm(lasagne.layers.Conv2DLayer(l_p_hid2, 
+      num_filters=256, filter_size=(5,5), pad='same',
+      nonlinearity=hid_nl))
 
-    l_p_hid3 = batch_norm(lasagne.layers.Deconv2DLayer(l_p_hid2, 
-      num_filters=128, filter_size=(5,5), stride=2, crop='same',
-      nonlinearity=hid_nl, output_size=(16,16)))
+    l_p_hid3 = lasagne.layers.Upscale2DLayer(l_p_hid2, 2)
+    l_p_hid3 = weight_norm(lasagne.layers.Conv2DLayer(l_p_hid3, 
+      num_filters=128, filter_size=(5,5), pad='same',
+      nonlinearity=hid_nl))
 
-    l_p_mu = lasagne.layers.flatten((lasagne.layers.Deconv2DLayer(l_p_hid3, 
-      num_filters=3, filter_size=(5,5), stride=2, crop='same', output_size=(32,32),
+    l_p_up = lasagne.layers.Upscale2DLayer(l_p_hid3, 2)
+    l_p_mu = lasagne.layers.flatten(
+      weight_norm(lasagne.layers.Conv2DLayer(l_p_up, 
+      num_filters=3, filter_size=(5,5), pad='same',
       nonlinearity=lasagne.nonlinearities.sigmoid)))
-
-    l_p_logsigma = lasagne.layers.flatten((lasagne.layers.Deconv2DLayer(l_p_hid3, 
-      num_filters=3, filter_size=(5,5), stride=2, crop='same', output_size=(32,32),
+    l_p_logsigma = lasagne.layers.flatten(
+      weight_norm(lasagne.layers.Conv2DLayer(l_p_up, 
+      num_filters=3, filter_size=(5,5), pad='same',
       nonlinearity=safe_nl)))
 
     l_sample = GaussianSampleLayer(l_p_mu, l_p_logsigma)
