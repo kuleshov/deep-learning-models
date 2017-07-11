@@ -40,8 +40,10 @@ The following algorithms are available.
 ### Unsupervised models
 
 * `vae`: variational autoencoder
-* `sbn`: sigmoid belief network trained with neural variational inference
+* `convvae`: convolutional variational autoencoder
+* `sbn`: vae with discrete latent variables, trained with neural variational inference (reduces to sigmoid belief network)
 * `adgm`: auxiliary deep generative model (unsupervised version)
+* `convadgm`: convolutional auxiliary deep generative model (unsupervised version)
 * `dadgm`: discrete-variable auxiliary deep generative model (unsupervised version, also trained with NVIL)
 * `dcgan`: small deep convolutional generative adversarial network (tested on mnist)
 
