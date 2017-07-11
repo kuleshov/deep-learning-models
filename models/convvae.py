@@ -11,6 +11,7 @@ from model import Model
 
 from layers import GaussianSampleLayer
 from layers import extras as nn
+from layers.normalization import weight_norm
 from distributions import log_bernoulli, log_normal, log_normal2
 
 import scipy.misc
@@ -52,52 +53,52 @@ class ConvVAE(Model):
     l_q_in = lasagne.layers.InputLayer(shape=(None, n_chan, n_dim, n_dim), 
                                      input_var=X)
 
-    l_q_conv1 = batch_norm(lasagne.layers.Conv2DLayer(
+    l_q_conv1 = weight_norm(lasagne.layers.Conv2DLayer(
         l_q_in, num_filters=128, filter_size=(5, 5), stride=2,
         nonlinearity=lasagne.nonlinearities.LeakyRectify(0.2),
         pad='same', W=lasagne.init.Normal(5e-2)))
 
-    l_q_conv2 = batch_norm(lasagne.layers.Conv2DLayer(
+    l_q_conv2 = weight_norm(lasagne.layers.Conv2DLayer(
         l_q_conv1, num_filters=256, filter_size=(5, 5), stride=2,
         nonlinearity=lasagne.nonlinearities.LeakyRectify(0.2),
         pad='same', W=lasagne.init.Normal(5e-2)))
 
-    l_q_conv3 = batch_norm(lasagne.layers.Conv2DLayer(
+    l_q_conv3 = weight_norm(lasagne.layers.Conv2DLayer(
         l_q_conv2, num_filters=512, filter_size=(5, 5), stride=2,
         nonlinearity=lasagne.nonlinearities.LeakyRectify(0.2),
         pad='same', W=lasagne.init.Normal(5e-2)))
 
-    l_q_mu = lasagne.layers.DenseLayer(
+    l_q_mu = weight_norm(lasagne.layers.DenseLayer(
         l_q_conv3, num_units=n_lat, nonlinearity=None,
-        W=lasagne.init.Normal(5e-2))
+        W=lasagne.init.Normal(5e-2)))
 
-    l_q_logsigma = lasagne.layers.DenseLayer(
+    l_q_logsigma = weight_norm(lasagne.layers.DenseLayer(
         l_q_conv3, num_units=n_lat, nonlinearity=safe_nl,
-        W=lasagne.init.Normal(5e-2))
+        W=lasagne.init.Normal(5e-2)))
 
     # create the decoder network
     l_p_z = GaussianSampleLayer(l_q_mu, l_q_logsigma)
 
-    l_p_hid1 = batch_norm(lasagne.layers.DenseLayer(
+    l_p_hid1 = weight_norm(lasagne.layers.DenseLayer(
         l_p_z, num_units=4*4*512, nonlinearity=hid_nl, 
         W=lasagne.init.Normal(5e-2)))
     l_p_hid1 = lasagne.layers.ReshapeLayer(l_p_hid1, (-1, 512, 4, 4))
     
-    l_p_hid2 = batch_norm(Deconv2DLayer(l_p_hid1, 
-      num_filters=256, filter_size=(5,5), stride=2, pad=2,
-      nonlinearity=hid_nl))
+    l_p_hid2 = batch_norm(lasagne.layers.Deconv2DLayer(l_p_hid1, 
+      num_filters=256, filter_size=(5,5), stride=2, crop='same',
+      nonlinearity=hid_nl, output_size=(8,8)))
 
-    l_p_hid3 = batch_norm(Deconv2DLayer(l_p_hid2, 
-      num_filters=128, filter_size=(5,5), stride=2, pad=2,
-      nonlinearity=hid_nl))
+    l_p_hid3 = batch_norm(lasagne.layers.Deconv2DLayer(l_p_hid2, 
+      num_filters=128, filter_size=(5,5), stride=2, crop='same',
+      nonlinearity=hid_nl, output_size=(16,16)))
 
-    l_p_mu = lasagne.layers.flatten(Deconv2DLayer(l_p_hid3, 
-      num_filters=3, filter_size=(5,5), stride=2, pad=2,
-      nonlinearity=lasagne.nonlinearities.sigmoid))
+    l_p_mu = lasagne.layers.flatten((lasagne.layers.Deconv2DLayer(l_p_hid3, 
+      num_filters=3, filter_size=(5,5), stride=2, crop='same', output_size=(32,32),
+      nonlinearity=lasagne.nonlinearities.sigmoid)))
 
-    l_p_logsigma = lasagne.layers.flatten(Deconv2DLayer(l_p_hid3, 
-      num_filters=3, filter_size=(5,5), stride=2, pad=2,
-      nonlinearity=safe_nl))
+    l_p_logsigma = lasagne.layers.flatten((lasagne.layers.Deconv2DLayer(l_p_hid3, 
+      num_filters=3, filter_size=(5,5), stride=2, crop='same', output_size=(32,32),
+      nonlinearity=safe_nl)))
 
     l_sample = GaussianSampleLayer(l_p_mu, l_p_logsigma)
 
